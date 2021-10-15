@@ -1,0 +1,217 @@
+---
+title: "Guided Project: Answering Business Questions with RSQLite"
+output: html_notebook
+---
+
+```{r}
+library(RSQLite)
+library(DBI)
+
+db <- "chinook.db"
+conn <- dbConnect(SQLite(), db)
+tables <- dbListTables(conn)
+
+```
+Make helper functions:
+```{r helper}
+run_query <- function(query) {
+  conn <- dbConnect(SQLite(), db)
+  result <- dbGetQuery(conn, query)
+ # dbDisconnect(conn)
+  return(result)
+}
+
+show_tables <- function(){
+   query <- "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view')"
+  return(run_query(query))
+}
+
+show_tables()
+
+```
+Set theme for plots:
+```{r}
+my_theme <- theme(axis.line.x.bottom = element_line(size = 0.25),
+                  axis.line.y.left = element_line(size = 0.25),
+                  panel.background = element_rect(fill = "white"),
+                  panel.grid = element_blank())
+
+theme_set(my_theme)
+```
+
+
+# The situation:
+
+The Chinook record store has just signed a deal with a new record label, and we are in charge of choosing the first three albums to be added to the store. There are four albums to choose from, and all four are by artists who don't have any tracks in the store right now. Here is the list of artist names and the genre of music they produce:
+
+| Artist name          | Genre   |
+|----------------------|---------|
+| Regal                | Hip-Hop |
+| Red Tone             | Punk    |
+| Meteor and the Girls | Pop     |
+| Slim Jim Bites       | Blues   |
+
+The record label specializes in artists from the US, so they have given Chinook some money to advertise the new albums in the USA. In order to choose which albums to buy, we need to identify the best-selling genres in the USA. 
+
+
+# Which new albums should be added?
+## 1. Which genres sell the most in the USA?
+Solution with SQL query as string: 
+```{r sql query genre}
+to_purchase <- '
+WITH usa_sales AS
+   (
+    SELECT il.* 
+    FROM invoice_line AS il
+    INNER JOIN invoice AS i ON il.invoice_id = i.invoice_id
+    INNER JOIN customer AS c ON i.customer_id = c.customer_id
+    WHERE c.country = "USA"
+   )
+SELECT
+    g.name AS genre,
+    count(us.invoice_line_id) AS tracks_sold,
+    cast(count(us.invoice_line_id) AS FLOAT)/(
+        SELECT COUNT(*) from usa_sales
+    ) AS percentage_tracks_sold
+FROM usa_sales AS us
+INNER JOIN track AS t ON t.track_id = us.track_id
+INNER JOIN genre g ON g.genre_id = t.genre_id
+GROUP BY genre
+ORDER BY percentage_tracks_sold DESC
+LIMIT 10;
+'
+run_query(to_purchase)
+```
+
+Solution with SQL chunk:
+```{sql connection=conn, output.var="top_10_sales"}
+WITH usa_sales AS
+   (
+    SELECT il.* 
+    FROM invoice_line AS il
+    INNER JOIN invoice AS i ON il.invoice_id = i.invoice_id
+    INNER JOIN customer AS c ON i.customer_id = c.customer_id
+    WHERE c.country = "USA"
+   )
+SELECT
+    g.name AS genre,
+    count(us.invoice_line_id) AS tracks_sold,
+    cast(count(us.invoice_line_id) AS FLOAT)/(
+        SELECT COUNT(*) from usa_sales
+    ) AS percentage_tracks_sold
+FROM usa_sales AS us
+INNER JOIN track AS t ON t.track_id = us.track_id
+INNER JOIN genre g ON g.genre_id = t.genre_id
+GROUP BY genre
+ORDER BY percentage_tracks_sold DESC
+LIMIT 10;
+```
+
+2. Plot the data
+```{r plot top 10 genres}
+library(ggplot2)
+# Note that I use the "top_10_sales" variable generated as the output of the SQL chunk above. Without the SQL chunk, the result of run_query(to_purchase) needs to be assigned to a variable so it can be used in R.
+
+top_genres_plot <- ggplot(data = top_10_sales, aes(x = reorder(genre, -percentage_tracks_sold), y = percentage_tracks_sold)) +
+  geom_bar(stat = "identity", fill = "orange") +
+  xlab("Genre") +
+  ylab("Percent of total tracks sold in USA") +
+  scale_y_continuous(labels=scales::percent) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+  
+
+top_genres_plot
+```
+## Conclusion
+It seems that Rock, Alternative & Punk, and Metal are the 3 top-selling music genres in the USA, so we should include the Punk album by Red Tone. However, we don't have any new Rock or Metal albums available, so we should choose the next best genres: Blues and Pop. 
+
+In sum, the following three albums will be recommended:
+- Red Tone (Punk)
+- Slim Jim Bites (Blues)
+- Meteor and the Girls (Pop).
+
+It would be worth asking the record label if they have any new Rock albums, because this genre is overwhelmingly the bestseller.
+
+# Assessment of sales support rep performance
+## 1. Gather all potentially relevant data
+```{sql connection=conn, output.var="employee_perf"}
+WITH sales_per_rep AS 
+(
+SELECT 
+i.customer_id,
+c.support_rep_id,
+SUM(i.total) AS total_sales
+FROM invoice AS i
+INNER JOIN customer AS c ON c.customer_id = i.customer_id
+GROUP BY 1, 2
+)
+SELECT 
+e.first_name || " " || e.last_name AS employee,
+e.reports_to AS supervisor,
+e.hire_date AS hire_date,
+e.birthdate AS birthdate,
+e.country AS country,
+SUM(spr.total_sales) as total_sold
+FROM sales_per_rep AS spr
+INNER JOIN employee AS e ON e.employee_id = spr.support_rep_id
+GROUP BY employee;
+
+```
+
+## 2. Plot the data
+```{r plot employee perf}
+e_perf_plot <- ggplot(data = employee_perf, aes(x = reorder(employee, -total_sold), y = total_sold)) +
+  geom_bar(stat = "identity", fill = "cyan3") +
+  xlab("Sales Support Rep") +
+  ylab("Total sales ($)") 
+                       
+e_perf_plot                        
+```
+Jane Peacock has the highest sales amount among the Sales Support Reps. Most of the available employee characteristics are the same between each of the reps, except for date of hire and birthdate. It's unlikely that age has a big impact on their sales, but more experienced employees may sell more due to various factors like increased skill or rapport with clients. 
+Let's visualize how long each employee has been with the company:
+
+```{r plot employee time since hire}
+library(lubridate) 
+library(tidyverse)
+
+hire_timeline <- employee_perf %>%
+  select(employee, hire_date, birthdate) %>%
+  mutate(hire_date = lubridate::as_date(hire_date),
+         time_since_hire = lubridate::today() - hire_date,
+         birthdate = lubridate::as_date(birthdate),
+         age = (lubridate::today() - birthdate)/365)
+
+
+plot_time <- ggplot(data = hire_timeline, aes(x = reorder(employee, time_since_hire), y = time_since_hire)) +
+  geom_bar(stat = "identity", fill = "sienna1") +
+  coord_flip() +
+  xlab("Sales Support Rep") +
+  ylab("Time since hire (days)") +
+  theme(axis.text.y = element_text(angle = 0))
+plot_time
+```
+Let's also look at their respective ages, keeping in mind that we don't know enough about these employees to know what other factors influencing their performance might be correlated with age. This means that even if we find big differences in age, we can't draw any firm conclusions about their relationship to employee sales.
+
+```{r plot age}
+age_plot <- ggplot(data = hire_timeline, aes(x = reorder(employee, age), y = age)) +
+  geom_bar(stat = "identity", fill = "lightgoldenrod2") +
+  coord_flip() +
+  xlab("Sales Support Rep") +
+  ylab("Age (years)") +
+  theme(axis.text.y = element_text(angle = 0))
+age_plot
+
+```
+
+## Conclusion:
+Jane Peacock has been with the company the longest, but not by much longer than Margaret Park, so it seems unlikely that this has a significant effect on her performance. She is also the youngest, but Margaret Park is the oldest, yet has the second-highest total dollar amount of sales, so it's also unlikely that age can explain the observed differences in performance. 
+A more detailed view of these employees' work patterns, like working hours and total number of days worked, is needed to better explain this variability. 
+
+# Sales for each different country
+## 1. Gather the data
+```{sql connection=conn, output.var="sales_bycountry"}
+
+```
+
+
+
