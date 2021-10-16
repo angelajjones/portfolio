@@ -170,7 +170,7 @@ e_perf_plot
 Jane Peacock has the highest sales amount among the Sales Support Reps. Most of the available employee characteristics are the same between each of the reps, except for date of hire and birthdate. It's unlikely that age has a big impact on their sales, but more experienced employees may sell more due to various factors like increased skill or rapport with clients. 
 Let's visualize how long each employee has been with the company:
 
-```{r plot employee time since hire}
+```{r plot employee time since hire, message=FALSE, warning=FALSE}
 library(lubridate) 
 library(tidyverse)
 
@@ -192,7 +192,7 @@ plot_time
 ```
 Let's also look at their respective ages, keeping in mind that we don't know enough about these employees to know what other factors influencing their performance might be correlated with age. This means that even if we find big differences in age, we can't draw any firm conclusions about their relationship to employee sales.
 
-```{r plot age}
+```{r plot age, message=FALSE, warning=FALSE}
 age_plot <- ggplot(data = hire_timeline, aes(x = reorder(employee, age), y = age)) +
   geom_bar(stat = "identity", fill = "lightgoldenrod2") +
   coord_flip() +
@@ -204,14 +204,113 @@ age_plot
 ```
 
 ## Conclusion:
-Jane Peacock has been with the company the longest, but not by much longer than Margaret Park, so it seems unlikely that this has a significant effect on her performance. She is also the youngest, but Margaret Park is the oldest, yet has the second-highest total dollar amount of sales, so it's also unlikely that age can explain the observed differences in performance. 
+Jane Peacock has been with the company the longest, but not by much longer than Margaret Park, so it seems unlikely that this has had a significant effect on her performance. She is also the youngest, but Margaret Park is the oldest, yet has the second-highest total dollar amount of sales, so it's also unlikely that age can explain the observed differences in performance. 
 A more detailed view of these employees' work patterns, like working hours and total number of days worked, is needed to better explain this variability. 
 
-# Sales for each different country
+# Sales for each different country (ignoring country data from invoice table)
 ## 1. Gather the data
 ```{sql connection=conn, output.var="sales_bycountry"}
+WITH dummy_code AS 
+(
+SELECT 
+     CASE WHEN (
+                SELECT COUNT(*) 
+                FROM customer AS c
+                WHERE country = c.country
+                ) = 1 THEN "Other"
+          ELSE c.country
+    END AS country,
+    c.customer_id,
+    il.*
+FROM invoice_line AS il
+INNER JOIN invoice aS i ON i.invoice_id = il.invoice_id
+INNER JOIN customer AS c ON c.customer_id = i.customer_id
+)
+
+SELECT 
+country,
+customers,
+total_sales,
+average_sales_per_c,
+average_order_val
+FROM 
+(
+    SELECT 
+    country,
+    COUNT(DISTINCT customer_id) AS customers,
+    SUM(unit_price) AS total_sales,
+    SUM(unit_price)/COUNT(DISTINCT customer_id) AS average_sales_per_c,
+    SUM(unit_price)/COUNT(DISTINCT invoice_id) AS average_order_val,
+    CASE
+      WHEN country = "Other" THEN 1
+      ELSE 0
+    END AS sorting
+    FROM dummy_code
+    GROUP BY country
+    ORDER BY sorting ASC, total_sales DESC
+);
 
 ```
 
+```{r}
+# temporary stopgap to correct "Other" labeling as even solution provided by Dataquest did not work 
 
+sales_bycountry <- sales_bycountry %>% 
+  mutate(country = if_else(customers == 1, "Other", country)) 
+```
+
+## 2. Plots
+Number of customers by country (excluding "Other" countries which had only 1 customer):
+```{r plot n_customers, warning=FALSE, message=FALSE}
+sales_bycountry_cut <-  sales_bycountry %>% filter(country != "Other")
+
+cust <- ggplot(data = sales_bycountry_cut, aes(x = reorder(country, -customers), y = customers, fill = country)) +
+  geom_bar(stat = "identity") + 
+  xlab("Country") +
+  ylab("Number of customers") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = "none")
+
+cust
+
+```
+
+Total sales by country (again excluding "Other"):
+```{r plot sales by country, message=FALSE, warning=FALSE}
+tot_sold <- ggplot(data = sales_bycountry_cut, aes(x = reorder(country, -total_sales), y = total_sales, fill = country)) +
+  geom_bar(stat = "identity") +
+  xlab("Country") +
+  ylab("Total sales ($)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = "none")
+
+tot_sold
+```
+Average sales per customer:
+```{r plot avg sales per c, message=FALSE, warning=FALSE}
+sales_per_c <- ggplot(data = sales_bycountry_cut, aes(x = reorder(country, -average_sales_per_c), y = average_sales_per_c, fill = country)) +
+  geom_bar(stat = "identity") +
+  xlab("Country") +
+  ylab("Average value of sales per customer ($)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = "none")
+
+sales_per_c
+```
+Average order value by country:
+```{r plot avg order val, message=FALSE, warning=FALSE}
+order_val <- ggplot(data = sales_bycountry_cut, aes(x = reorder(country, -average_order_val), y = average_order_val, fill = country)) +
+  geom_bar(stat = "identity") +
+  xlab("Country") +
+  ylab("Average order value ($)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        legend.position = "none")
+
+order_val
+
+```
+# Conclusion
+The USA is the biggest market, largely because it has the most customers, as these customers are not the biggest spenders. The data shows that the biggest spenders are in the Czech Republic, where both the average value of sales per customer and the average order value are highest despite it having one of the smallest numbers of customers (though note that the average order value varies relatively little between countries). 
+
+Based on this data, the Czech Republic seems like a market with potential for growth. Perhaps other countries with few customers but relatively high average sales values per customer and/or order vales (e.g., Portugal, India, United Kingdom) might also be candidates for potential growth, but generally it would be helpful to have more detailed data on customers and their behaviour (e.g., historical changes, demographics) in order to be able to make better recommendations. 
 
