@@ -205,8 +205,8 @@ age_plot
 ```
 
 ## Conclusion:
-Jane Peacock has been with the company the longest, but not by much longer than Margaret Park, so it seems unlikely that this has had a significant effect on her performance. She is also the youngest, but Margaret Park is the oldest, yet has the second-highest total dollar amount of sales, so it's also unlikely that age can explain the observed differences in performance. 
-A more detailed view of these employees' work patterns, like working hours and total number of days worked, is needed to better explain this variability. 
+Jane Peacock has been with the company the longest, but not by much longer than Margaret Park, so it seems unlikely that this has had a significant effect on her performance, unless she had relevant experience in sales before she joined the company. She is also the youngest, but Margaret Park is the oldest, yet has the second-highest total dollar amount of sales, so it's also unlikely that age can explain the observed differences in performance. 
+A more detailed view of these employees' work patterns, like working hours and total number of days worked, and/or their professional background, is needed to better explain this variability. 
 
 # Sales for each different country (ignoring country data from invoice table)
 ## 1. Gather the data
@@ -376,8 +376,86 @@ colour <- brewer.pal(3, "Set3")
 
 pie(albums_vs_ind$percent, labels = c("tracks", "albums"), border = "white", col = colour, main = "Total sales")
 
-# Note: while pie and donut charts are generally a bad idea for data viz because it's often difficult to grasp the relative magnitude of each "slice", in this particular case I think it's alright because there are only two categories of sales to represent (tracks and albums) and I find that it actually conveys the relative proportions as well as or better than a bar chart. 
+# Note: while pie and donut charts are generally a bad idea for data viz because it's difficult to grasp the relative magnitude of each "slice", in this particular case I think it's alright because there are only two categories of sales to represent (tracks and albums) and I find that it actually conveys the relative proportions as well as or better than a bar chart. 
 ```
 
 ## Conclusion: 
 Whole albums represent approximately 20% of all sales, which is a large proportion. It doesn't make sense to change strategy and focus on buying individual popular tracks. 
+
+# Bonus questions:
+1. which artist is used the most in playlists?
+2. How many tracks have been purchased vs not purchased?
+3. Does the range of tracks in the store reflect their sales popularity?
+4. Do protected vs non-protected media types have an effect on popularity?
+5. any other possible business question.
+
+# Some aspects of music popularity
+## 1. Which artist features most often in playlists?
+There are two ways we could define "most often" here - artists with the most tracks contained in playlists, and artists who have at least 1 track in the most playlists. Data for both definitions is gathered here:
+```{sql, connection=conn, output.var="artist_pop"}
+WITH playlist_info AS (
+SELECT p.*, pt.*, t.*, g.*
+FROM playlist AS p
+INNER JOIN playlist_track AS pt ON pt.playlist_id = p.playlist_id
+INNER JOIN track AS t ON t.track_id = pt.track_id
+INNER JOIN genre AS g On g.genre_id = t.genre_id
+),
+  artist_info AS (
+  SELECT ar.*, al.*
+  FROM album AS al
+  INNER JOIN artist AS ar ON ar.artist_id = al.artist_id
+  ),
+  
+  playlists_with_artists AS (
+  SELECT 
+  pi.playlist_id AS playlist_id,
+  ai.artist_id AS artist_id,
+  ai.name AS artist_name,
+  COUNT(pi.track_id) AS n_tracks
+  FROM playlist_info AS pi
+  INNER JOIN artist_info AS ai ON ai.album_id = pi.album_id
+  GROUP BY playlist_id, artist_name
+  )
+  
+SELECT 
+artist_name,
+artist_id,
+COUNT(playlist_id) AS n_playlists,
+n_tracks
+FROM playlists_with_artists AS pwa
+GROUP BY artist_name
+ORDER BY n_tracks DESC;
+
+```
+
+```{r plot artist pop 1, message=FALSE, warning=FALSE}
+artist_top10_tracks <- artist_pop %>% slice_max(order_by = n_tracks, with_ties = TRUE, n = 10)
+
+tracks <- ggplot(data = artist_top10_tracks, aes(x = reorder(artist_name, n_tracks), y = n_tracks)) +
+  geom_bar(stat = "identity", fill = "hotpink1") +
+  coord_flip() +
+  xlab("Artist") +
+  ylab("Number of tracks") 
+
+
+tracks
+
+```
+```{r plot artist pop 2, message=FALSE, warning=FALSE}
+artist_top10_play <- artist_pop %>% slice_max(order_by = n_playlists, with_ties = TRUE, n = 10)
+
+play <- ggplot(data = artist_top10_play, aes(x = reorder(artist_name, n_playlists), y = n_playlists)) +
+  geom_bar(stat = "identity", fill = "hotpink2") +
+  coord_flip() +
+  xlab("Artist") +
+  ylab("Number of playlists") 
+
+
+play
+```
+Note that the list of "Top 10" artists in terms of the number of playlists they feature in is much longer than just 10. This is because I chose to allow ties when slicing the data - you can see on the graph that most of the artists feature in exactly the same number of playlists. Using `n_tracks` as a secondary ordering variable would not have been useful as there are also lots of ties in this variable. 
+
+## Conclusion:
+Most of the top 10 artists in terms of number of tracks featured in playlists are Rock and Metal artists, while most of those whose popularity is defined as the number of playlists they feature in make classical music. The most popular artist is therefore either Iron Maiden or Eugene Ormandy. 
+
+## 2. How many tracks have been purchased vs not purchased?
