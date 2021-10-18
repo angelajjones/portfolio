@@ -31,6 +31,7 @@ show_tables()
 ```
 Set theme for plots:
 ```{r}
+library(ggplot2)
 my_theme <- theme(axis.line.x.bottom = element_line(size = 0.25),
                   axis.line.y.left = element_line(size = 0.25),
                   panel.background = element_rect(fill = "white"),
@@ -107,7 +108,7 @@ ORDER BY percentage_tracks_sold DESC
 LIMIT 10;
 ```
 
-2. Plot the data
+## 2. Plot the data
 ```{r plot top 10 genres}
 library(ggplot2)
 # Note that I use the "top_10_sales" variable generated as the output of the SQL chunk above. Without the SQL chunk, the result of run_query(to_purchase) needs to be assigned to a variable so it can be used in R.
@@ -310,7 +311,68 @@ order_val
 
 ```
 # Conclusion
-The USA is the biggest market, largely because it has the most customers, as these customers are not the biggest spenders. The data shows that the biggest spenders are in the Czech Republic, where both the average value of sales per customer and the average order value are highest despite it having one of the smallest numbers of customers (though note that the average order value varies relatively little between countries). 
+The USA is the biggest market, largely because it has the most customers, as these customers are not the biggest spenders. The data shows that the biggest spenders are in the Czech Republic, where both the average value of sales per customer and the average order value are highest despite it having one of the smallest numbers of customers (though note that the average order value varies relatively little between countries so it might not be the most meaningful metric). 
 
 Based on this data, the Czech Republic seems like a market with potential for growth. Perhaps other countries with few customers but relatively high average sales values per customer and/or order vales (e.g., Portugal, India, United Kingdom) might also be candidates for potential growth, but generally it would be helpful to have more detailed data on customers and their behaviour (e.g., historical changes, demographics) in order to be able to make better recommendations. 
 
+# Should the store continue to buy full albums from record labels?
+## 1. Find out how many sales were for full albums versus individual tracks
+```{sql, connection=conn, output.var="albums_vs_ind"}
+--First, get the first track of each invoice and define new table invoice_first_track (ifs)
+WITH invoice_first_track AS
+    (
+     SELECT
+         il.invoice_id invoice_id,
+         MIN(il.track_id) first_track_id
+     FROM invoice_line il
+     GROUP BY 1
+    )
+SELECT --then select final columns (including is_album which hasn't been defined yet)
+    is_album,
+    COUNT(invoice_id) n_invoices,
+    CAST(count(invoice_id) AS FLOAT) / (SELECT COUNT(*) FROM invoice) percent
+FROM --then define the subset of invoice_first_track to select from
+    (
+    SELECT
+        ifs.*, --i.e., all values of ifs where
+        CASE
+            WHEN
+                 (--the difference between the list of tracks corresponding to each invoice in ifs
+                  SELECT il2.track_id FROM invoice_line il2
+                  WHERE il2.invoice_id = ifs.invoice_id
+                   
+                  EXCEPT -- and the list of tracks belonging to albums to which tracks in invoice_first_track belong
+                  
+                  SELECT t.track_id FROM track t 
+                  WHERE t.album_id = (
+                                      SELECT t2.album_id FROM track t2
+                                      WHERE t2.track_id = ifs.first_track_id
+                                     )
+                 ) IS NULL -- is null
+             AND
+                 (-- the difference between the list of tracks corresponding to each invoice in ifs
+                  SELECT il2.track_id FROM invoice_line il2
+                  WHERE il2.invoice_id = ifs.invoice_id
+                  EXCEPT -- and the list of tracks belonging to the albums to which the tracks in ifs belong
+                  SELECT t.track_id FROM track t
+                  WHERE t.album_id = (
+                                      SELECT t2.album_id FROM track t2
+                                      WHERE t2.track_id = ifs.first_track_id
+                                     ) 
+                 ) IS NULL -- is null
+             THEN "1" -- fill the new column of ifs is_album with 1 if the above differences are NULL (i.e., the purchases are for whole albums), and 0 if they are not (i.e., the purchases are for individual tracks)
+             ELSE "0"
+         END AS "is_album"
+     FROM invoice_first_track ifs
+    )
+GROUP BY is_album;
+
+```
+
+## 2. Visualization
+```{r}
+
+```
+
+## Conclusion: 
+Whole albums represent approximately 20% of all sales, which is a large proportion. It doesn't make sense to change strategy and focus on buying individual popular tracks. 
