@@ -370,8 +370,13 @@ GROUP BY is_album;
 ```
 
 ## 2. Visualization
-```{r}
+```{r plot prop album sales, message=FALSE, warning=FALSE}
+library(RColorBrewer)
+colour <- brewer.pal(3, "Set3")
 
+pie(albums_vs_ind$percent, labels = c("tracks", "albums"), border = "white", col = colour, main = "Total sales")
+
+# Note: while pie and donut charts are generally a bad idea for data viz because it's often difficult to grasp the relative magnitude of each "slice", in this particular case I think it's alright because there are only two categories of sales to represent (tracks and albums) and I find that it actually conveys the relative proportions as well as or better than a bar chart. 
 ```
 
 ## Conclusion: 
