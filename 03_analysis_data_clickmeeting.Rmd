@@ -1,0 +1,1255 @@
+---
+title: "`r ifelse(length(params$webinar) == 1, params$webinar, stringr::str_c('Evaluation ' , as.character(Sys.Date())))`"
+description: "Analyse der Webinar-Daten (Clickmeeting und Teams)"
+author:
+  - name: Science on Stage 
+    url: https://www.science-on-stage.eu/
+load_shiny: !r library(shiny)
+date: "`r Sys.Date()`"
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: false
+    theme: ../SonS_design.css
+  word_document:
+    reference_docx: ../../misc/reference.docx
+    fig_width: 7
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: false
+    fig_width: 7
+params:
+  lang:
+    label: !r p(a("GET HELP!", href = "https://github.com/CorrelAid/science-on-stage/wiki/Webinar-Reports-erstellen", target = "_blank"), br(), br(), "Please choose the language of the report:")
+    input: select
+    value: DE
+    choices: [DE, EN]
+  webinar_choice:
+    label: !r p("Do you want to filter webinars by title?")
+    input: select
+    value: [Yes]
+    choices: [Yes, No]
+  webinar:
+    label: !r p("1. If you want to filter webinars by title, select your desired webinar from the list below (multi-selection available). If you want to filter by the other available parameters and NOT by title, please make sure you selected FALSE in the previous question and leave this section blank:")
+    input: select
+    value: 
+    choices: !r unique(readr::read_csv2(here::here("data/raw/Webinare/api_clickmeeting/clean/registrations_attendees_clean.csv"))$meeting_name)
+    multiple: True
+  operator:
+    label: !r p("If you don't want to select (only) by title, choose the AND operator below to refine your filters. Otherwise, choose 'by title only.'")
+    input: select
+    value: AND
+    choices: [AND, by title only]
+  source:
+    label: "2. Filter by source (multi-selection available):"
+    input: select
+    value: clickmeeting
+    choices: !r unique(readr::read_csv2(here::here("data/raw/Webinare/api_clickmeeting/clean/registrations_attendees_clean.csv"))$source)
+    multiple: True
+  daterange:
+    label: "3. AND by date ..."
+    input: slider
+    min: !r lubridate::ymd("2020-09-01")
+    max: !r lubridate::today()
+    value: !r c(lubridate::ymd("2020-09-01"), lubridate::today())
+  starting_time:
+    label: "4. AND these start times (i.e. the hour the webinar starts)"
+    input: slider
+    min: 0
+    max: 24
+    step: 1
+    value: [0, 24]
+  duration_webinar:
+    label: "5. AND these durations (i.e. how long the webinar lasts in minutes)"
+    value: [0, 360]
+    input: slider
+    min: 0
+    max: 360
+    step: 15
+  region:
+    label: "6. AND these regions:"
+    input: select
+    value: [DE, EU]
+    choices: [DE, EU]
+    multiple: True
+  file_name:
+    label: "If you wish to name your output file, fill in the textbox below. Otherwise, the report will be named with today's timestamp. DO NOT use the same name as previous reports."
+    input: text
+    value: ""
+
+---
+
+
+
+```{r setup, echo=FALSE}
+# set default chunk behaviour for figures
+knitr::opts_chunk$set(
+ fig.width = 7,
+  out.width = "100%"
+)
+
+# Set the custom theme defined in ci.R as the theme for all graphs in document
+theme_set(layout)
+
+# writes a function which determines if the output is a word document
+is_word_output <- function(fmt = knitr:::pandoc_to()) { 
+  length(fmt) == 1 && fmt == "docx"
+}
+
+```
+
+
+```{r filter, include=FALSE, echo=FALSE}
+data <- readRDS(here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "registrations_attendees_clean.rds"))
+
+# filter for selected webinars
+if (params$webinar_choice == "TRUE"){
+  data_manual <- data %>% filter(meeting_name %in% params$webinar)
+} 
+
+# Convert webinar duration from minutes to seconds
+duration_webinar_secs <- params$duration_webinar * 60
+
+# filter for appropriate date multi-selection
+data_selection <- data %>% 
+  filter(
+         besucher %in% params$region, 
+         source %in% params$source,
+         between(meeting_starts_at, params$daterange[1], params$daterange[2]),
+         between(meeting_starts_at_hour, params$starting_time[1], params$starting_time[2]),
+         between(webinar_interval, duration_webinar_secs[1], duration_webinar_secs[2])
+         )
+         
+
+# combine selection of webinars via operator
+if(params$webinar_choice == "TRUE" & params$operator == "AND") {
+  data_uni <- dplyr::union(data_manual, data_selection)
+  
+} else if (params$webinar_choice == "FALSE" & params$operator == "AND") {
+  data_uni <- data_selection
+  
+} else if (params$operator == "by title only"){
+  data_uni <- data_manual
+  
+} else {
+  ui_warn("Oops. Something went wrong. Sorry!")
+}
+
+filename <- case_when(nchar(params$file_name) >= 1 ~ params$file_name, 
+                      TRUE ~ as.character(lubridate::now())) 
+  
+
+# clean manually defined filename to avoid path errors
+filename <- str_replace_all(filename, r'{[<>:"/\\|?*]}', "#")
+
+ 
+
+```
+
+
+```{r error if invalid params, eval=nrow(data_uni) == 0, message=TRUE, warning=TRUE, echo=FALSE}
+
+stop("Your selection does not include any webinars. Please select valid parameters. Sie haben kein Webinar ausgewählt. Bitte wählen Sie einen gültigen Parameter aus.")
+
+```
+
+### `r ifelse(params$lang == "DE", "Sie haben folgende Webinare ausgewählt:", "You have selected the following webinars:")`
+```{r listWebinars, echo=FALSE}
+listweb <- data_uni %>% group_by(webinar_date, webinar_timeofday, source, besucher) %>% distinct(meeting_name, meeting_id, session_id)
+```
+
+```{r makeWebTab, echo=FALSE}
+if(knitr::is_html_output()){
+  DT::datatable(listweb, options = list(scrollX = TRUE), filter = "top")
+} else {
+  flextable::flextable(listweb) %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+}
+```
+
+```{r warningstatement, echo=FALSE, results='asis'}
+if(params$lang == "EN" & knitr::is_html_output() & exists("listweb") == TRUE){
+  cat("**If you are using a Mac:** Please note that you may not be able to see the horizontal scrollbar right away in this table. If this is the case, click on a row and press the right arrow simultaneously until it appears.")
+} else if (params$lang == "DE" & knitr::is_html_output() & exists("listweb") == TRUE){
+  cat("**Wenn Sie einen Mac verwenden:** Bitte beachten Sie, dass die horizontale Bildlaufleiste in dieser Tabelle möglicherweise nicht sofort angezeigt wird. Klicken Sie in diesem Fall auf eine Zeile und drücken Sie gleichzeitig auf den rechten Pfeil, bis sie erscheint.")
+} else {
+  cat(" ")
+}
+
+```
+
+# `r ifelse(params$lang == "DE", "Anmeldungen und Anwesenheit", "Registrations and attendance")`
+## `r ifelse(params$lang == "DE", "Gesamtzahl der Anmeldungen und Teilnehmer in diesem Bericht", "Total Number of registrations and attendees in this report")`
+```{r makeTotSummary, echo=FALSE, results='asis'}
+
+att.tot <- data_uni %>% summarise(tot_registrations = sum(n()),
+                                  tot_attendees = sum(sum(attended))) %>%
+  mutate(tot_percent_att = (tot_attendees/tot_registrations)*100) 
+
+
+```
+
+```{r printSummary, echo=FALSE, results='asis'}
+if(exists("att.tot") == TRUE){
+  if(knitr::is_html_output()){
+  DT::datatable(att.tot, filter = "top")
+} else {
+  flextable::flextable(att.tot) %>%
+    set_header_labels(tot_registrations = "Total Registrations", tot_attendees = "Total Attendees", tot_percent_att = "Total Percent Attendance") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+  
+}
+
+} else {
+  cat("")
+}
+```
+
+## `r ifelse(params$lang == "DE", "Anzahl der Anmeldungen über die Zeit", "Number of registrations across time")`
+```{r nRegPlot, echo=FALSE}
+data_uni$registration_date <- as_date(data_uni$registration_date)
+data_uni$webinar_date <- as_date(data_uni$webinar_date)
+
+
+if (knitr::is_html_output()){
+
+regtime.plot <- ggplot(data = data_uni, aes(x = registration_date)) +
+  geom_histogram(binwidth = 3, fill = SonS_palette1[1]) +
+  scale_x_date(name = "Date/Datum", date_breaks = "1 month", date_labels = "%b %Y") +
+  ylab("Number of Registrations/\nAnzahl der Anmeldungen") +
+  theme(axis.text.x = element_text(angle = 45, size = rel(2)),
+        axis.text.y = element_text(size = rel(2)),
+        axis.title.y = element_text(size = rel(2.2), angle = 90, vjust = 0.8, hjust = 0.5),
+        axis.title.x = element_text(size = rel(2.2), angle = 0, hjust = 0.5)) 
+regtime.plot
+} else { # makes a plot with smaller font so it's readable in Word (and pdf)
+  regtime.plot <- ggplot(data = data_uni, aes(x = registration_date)) +
+  geom_histogram(binwidth = 3, fill = SonS_palette1[1]) +
+  scale_x_date(name = "Date/Datum", date_breaks = "1 month", date_labels = "%b %Y") +
+  ylab("Number of Registrations/\nAnzahl der Anmeldungen") +
+  theme(axis.text.x = element_text(angle = 45, size = rel(1)),
+        axis.text.y = element_text(size = rel(1)),
+        axis.title.y = element_text(size = rel(1), angle = 90, vjust = 0.8, hjust = 0.5),
+        axis.title.x = element_text(size = rel(1), angle = 0, hjust = 0.5)) 
+regtime.plot
+  
+}
+
+```
+
+```{r makeRegTable, echo=FALSE}
+reg.n <- data_uni %>% 
+  group_by(month = floor_date(registration_date, "month")) %>%
+  summarise(`number of registrations` = n()) %>% 
+  mutate(year = lubridate::year(month), month = lubridate::month(month, label = TRUE))  %>% 
+  relocate(year, .before = month)
+
+```
+
+```{r tableRegistrationsbyTime, echo=FALSE}
+
+if(knitr::is_html_output()){
+  DT::datatable(reg.n, filter = "top")
+} else {
+  flextable::flextable(reg.n) %>%
+    set_header_labels(year = "Year", month = "Month", `number of registrations` = "Number of Registrations") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+}
+```
+`r ifelse(params$lang == "EN", "**Note:** If you see a row with no registration date in this table and the following table, it probably refers to Teams data, for which this information is missing.", "**Anmerkung:** Wenn es eine Zeile ohne Anmeldungszeitpunkt in diese Tabelle und die folgende Tabelle gibt, handelt es sich wahrscheinlich um Teams-Daten, da es diese Information in diese Art von Daten nicht gibt.")`  
+
+##  `r ifelse(params$lang == "DE", "Anmeldung und Teilnehmerzahl pro Monat", "Number of registrations and attendees per month")`
+```{r makeAttTable, echo=FALSE}
+att <- data_uni %>% group_by(month = floor_date(webinar_date, "month")) %>%
+  summarise(registrations = n(),
+            attendees = sum(attended)) %>% 
+  mutate(year = lubridate::year(month), 
+         month = lubridate::month(month, label = TRUE),
+         percent_att = (attendees/registrations)*100)  %>% relocate(year, .before = month) %>%
+  arrange(desc(percent_att))
+
+```
+
+```{r tableAttendancebyTime, echo=FALSE}
+
+if(knitr::is_html_output()){
+  DT::datatable(att, filter = "top")
+} else {
+  flextable::flextable(att) %>%
+    set_header_labels(year = "Year", month = "Month", registrations = "Registrations", attendees = "Attendees", percent_att = "Percent attendance") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+}
+```
+
+
+```{r printheader, echo=FALSE, results='asis'}
+if (length(unique(data_uni$meeting_name)) > 1 & params$lang == "DE"){
+  title1.3 <- c("## Anmeldung und Teilnehmerzahl pro Webinar")
+  cat(title1.3)
+} else if (length(unique(data_uni$meeting_name)) > 1 & params$lang == "EN") {
+  title1.3 <- c("## Number of registrations and attendees per webinar")
+  cat(title1.3)
+} else {
+  cat("")
+}
+
+```
+
+
+```{r makeAttbyWebTable, echo=FALSE, results='asis'}
+if (length(unique(data_uni$meeting_name)) > 1){
+  att.ind <- data_uni %>% group_by(meeting_name_short) %>% 
+  summarise(registrations = n(),
+            attendees = sum(attended)) %>%
+  mutate(percent_att = (attendees/registrations)*100) %>%
+  arrange(desc(percent_att))
+} else {
+  cat("")
+}
+
+```
+
+```{r tableAttendancebyWebinar, echo=FALSE, results='asis'}
+if(exists("att.ind") == TRUE){
+  if(knitr::is_html_output()){
+  DT::datatable(att.ind, filter = "top")
+} else {
+  flextable::flextable(att.ind) %>%
+    set_header_labels(meeting_name = "Webinar", registrations = "Registrations", attendees = "Attendees", percent_att = "Percent attendance") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+  
+}
+
+} else {
+  cat("")
+}
+```
+
+
+```{r makeheader1.4, echo=FALSE, results='asis'}
+if (exists("att.ind") == TRUE & params$lang == "DE"){
+  title1.4 <- c("## Prozentuale Teilnahme pro Webinar")
+  cat(title1.4)
+  
+} else if (exists("att.ind") == TRUE & params$lang == "EN"){
+  title1.4 <- c("## Percent attendance per Webinar")
+  cat(title1.4)
+  
+} else {
+  cat("")
+}
+```
+
+```{r reset_theme, echo = FALSE, include=FALSE}
+theme(layout)
+```
+
+```{r plotAttbyWeb, echo=FALSE, results='asis'}
+
+if (exists("att.ind") == TRUE & knitr::is_html_output()){
+  att.plot <- ggplot(data = att.ind, aes(x = reorder(meeting_name_short, percent_att), y = percent_att)) +
+  geom_col(fill = SonS_palette2[2]) +
+  coord_flip() +
+  ylab("Percent attendance/\nProzentuale Teilnahme") +
+  xlab("Webinar") +
+  theme(axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(2)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2)),
+        axis.text = element_text(size = rel(2)))
+att.plot
+} else if (exists("att.ind") == TRUE & is_word_output()){
+  att.plot <- ggplot(data = att.ind, aes(x = reorder(meeting_name_short, percent_att), y = percent_att)) +
+  geom_col(fill = SonS_palette2[2]) +
+  coord_flip() +
+  ylab("Percent attendance/\nProzentuale Teilnahme") +
+  xlab("Webinar") +
+  theme(axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(1)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)),
+        axis.text = element_text(size = rel(1)))
+att.plot
+  
+} else {
+  cat("")
+}
+
+
+```
+
+
+```{r sumRegAttbyWeb, echo=FALSE, results='asis'}
+if (length(unique(data_uni$meeting_name)) > 1){
+  evalweb <- TRUE
+  web <- data_uni %>% group_by(meeting_name_short, webinar_date, webinar_timeofday, source, besucher) %>%
+    distinct() %>% 
+    summarise(attendees = sum(attended), 
+              registrations = n(), 
+              percent_attendance = (attendees/registrations)*100,
+              meeting_id = unique(meeting_id), 
+              session_id = unique(session_id), block = unique(block)) %>%
+    arrange(desc(percent_attendance))
+  web.shorter <- web %>% select(-c(meeting_id, session_id))
+  
+} else {
+  evalweb <- FALSE
+  cat("")
+}
+
+```
+
+
+
+```{r makeheader1.6, echo=FALSE, results='asis'}
+if (params$lang == "DE" & exists("web") == TRUE & length(unique(data_uni$meeting_name)) <= 15){
+  
+  cat("## Vergleich zwischen Interesse an Webinaren und tatsächlicher Anwesenheit")
+  
+} else if (exists("web") == TRUE & params$lang == "EN" & length(unique(data_uni$meeting_name)) <= 15){
+
+  cat("## Comparison between interest in webinars and actual attendance")
+  
+} else if (exists("web") == FALSE){
+ 
+   cat("")
+}
+
+
+```
+
+
+```{r plotRegAttbyWeb, eval=evalweb, echo=FALSE, results='asis'}
+
+if (exists("web") == TRUE){
+  
+  web.long <- web %>% pivot_longer(cols = c(attendees, registrations), names_to = "type", values_to = "n")
+  
+  web.sum.meet <- web %>% select(meeting_name_short, percent_attendance, source, webinar_timeofday) %>% group_by(webinar_timeofday, source, meeting_name_short) %>% summarise(percent_attendance = mean(percent_attendance))
+ 
+    if (length(unique(data_uni$meeting_name)) <= 15 & is_html_output()){
+plot.comp <- ggplot(web.long, aes(x = reorder(meeting_name_short, n), y = n, fill = type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = SonS_palette1) +
+  coord_flip() +
+  theme(axis.text = element_text(size = rel(2)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2)),
+        axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(2)),
+        legend.text = element_text(size = rel(1.6)),
+        legend.position = "bottom") +
+  xlab("Webinar") +
+  ylab("Registrations and attendees/\nAnzahl Anmeldungen und Teilnehmer")
+
+
+plot.tod <- web.sum.meet %>% filter(source == "clickmeeting") %>% group_by(meeting_name_short) %>%
+  ggplot(aes(x = meeting_name_short, y = percent_attendance)) +
+    geom_col(fill = SonS_palette2[4]) +
+   coord_flip() +
+  xlab("Webinar") +
+  ylab("% Attendance/% Anwesenheit") +
+  theme(axis.text = element_text(angle = 0, size = rel(2)),
+        axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(2)),
+        axis.title.y = element_text(size = rel(2), angle = 90, vjust = 0.8, hjust = 0.5),
+        strip.text.y.right = element_text(angle = 0, size = rel(1.5))) +
+  facet_grid(webinar_timeofday ~ .) 
+
+plot.comp # plot.tod gets printed in the following chunk
+
+} else if (exists("web") == TRUE & ((is_word_output() | knitr::is_latex_output())) & length(unique(data_uni$meeting_name)) <= 15){
+  plot.comp <- ggplot(web.long, aes(x = reorder(meeting_name_short, n), y = n, fill = type)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = SonS_palette1) +
+  coord_flip() +
+  theme(axis.text = element_text(size = rel(1)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)),
+        axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(1)),
+        legend.text = element_text(size = rel(1)),
+        legend.position = "bottom") +
+  xlab("Webinar") +
+  ylab("Registrations and attendees/\nAnzahl Anmeldungen und Teilnehmer")
+  plot.comp
+
+plot.todw <- web.sum.meet %>% filter(source == "clickmeeting") %>% group_by(meeting_name_short) %>%
+  ggplot(aes(x = meeting_name_short, y = percent_attendance)) +
+    geom_col(fill = SonS_palette2[4]) +
+   coord_flip() +
+  xlab("Webinar") +
+  ylab("% Attendance/% Anwesenheit") +
+  theme(axis.text.x = element_text(angle = 0, size = rel(1)),
+        axis.text.y = element_text(size = rel(1)),
+        axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(1)),
+        axis.title.y = element_text(size = rel(1), angle = 90, vjust = 0.8, hjust = 0.5),
+        strip.text.y.right = element_text(angle = 0, size = rel(0.6))) +
+  facet_grid(webinar_timeofday ~ .) 
+
+
+}
+} else {
+ cat("") 
+}
+
+
+
+```
+
+```{r plotRegAttbyToD, echo=FALSE}
+if (exists("plot.tod") == TRUE & knitr::is_html_output()){
+  plot.tod
+} else if (exists("plot.todw") == TRUE & ((is_word_output() | knitr::is_latex_output()))){
+  plot.todw
+} else {
+  cat("")
+}
+```
+
+
+```{r makeheader1.7, echo=FALSE, results='asis'}
+if (length(unique(data_uni$meeting_name)) > 2 & "clickmeeting" %in% data_uni$source & params$lang == "DE"){
+  title1.7 <- c("## Wahrscheinlichkeit der Anwesenheit pro Zeit zwischen Anmeldung und Webinar (nur Clickmeetingdaten)")
+  cat(title1.7)
+  
+} else if (length(unique(data_uni$meeting_name)) > 2 & "clickmeeting" %in% data_uni$source & params$lang == "EN"){
+  title1.7 <- c("## Probability of attendance by time of registration prior to webinar (Clickmeeting data only)")
+  cat(title1.7)
+
+} else {
+  cat("")
+}
+
+
+```
+
+
+```{r plotProbAttbyReg, echo=FALSE, results='asis'}
+label_days <- function(time) {
+  time <- abs(as.numeric(time))
+  in_days <- time / (3600*24)
+  day_label <- str_c(in_days, " Tage")
+  return(day_label)
+}
+
+if (length(unique(data_uni$meeting_name)) > 2 & knitr::is_html_output() & "clickmeeting" %in% data_uni$source){
+  probatt.plot <- data_uni %>% 
+  ggplot(aes(x = desc(registration_before_meeting), y = attended)) +
+  geom_jitter(height = .08, alpha = .3, colour = SonS_palette1[1]) +
+  geom_smooth() +
+  scale_x_time(
+    # breaks = scales::breaks_width("10 day"),
+    label = label_days) +
+  labs(x = "Delay between registration and webinar/\nZeit zwischen Anmeldung und Webinar",
+       y = "Probability of attendance/\nWahrscheinlichkeit der Anwesenheit") +
+    theme(axis.title.y = element_text(size = rel(2), angle = 90, vjust = 0.8, hjust = 0.5),
+          axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(2)),
+          axis.text = element_text(size = rel(2))) +
+  geom_vline(xintercept = 0, colour = "red") +
+  scale_y_continuous(labels= scales::percent)
+probatt.plot
+
+} else if(length(unique(data_uni$meeting_name)) > 2 & ((is_word_output() | knitr::is_latex_output())) & "clickmeeting" %in% data_uni$source){
+  probatt.plot <- data_uni %>% 
+  ggplot(aes(x = desc(registration_before_meeting), y = attended)) +
+  geom_jitter(height = .08, alpha = .3, colour = SonS_palette1[1]) +
+  geom_smooth() +
+  scale_x_time(
+    # breaks = scales::breaks_width("10 day"),
+    label = label_days) +
+  labs(x = "Delay between registration and webinar/\nZeit zwischen Anmeldung und Webinar",
+       y = "Probability of attendance/\nWahrscheinlichkeit der Anwesenheit") +
+    theme(axis.title.y = element_text(size = rel(1), angle = 90, vjust = 0.8, hjust = 0.5),
+          axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(1)),
+          axis.text = element_text(size = rel(1))) +
+  geom_vline(xintercept = 0, colour = "red") +
+  scale_y_continuous(labels= scales::percent)
+probatt.plot
+  
+} else {
+  cat("")
+}
+
+
+```
+
+
+
+```{r makeheader1.8, echo=FALSE, results='asis'}
+if ("clickmeeting" %in% data_uni$source & length(unique(data_uni$meeting_name)) <= 8 & params$lang == "DE") {
+  title1.8 <- c("## Anwesenheit nach Prozentuale Sehdauer des Webinars")
+  cat(title1.8)
+  
+} else if ("clickmeeting" %in% data_uni$source & length(unique(data_uni$meeting_name)) <= 8 & params$lang == "EN"){
+  title1.8 <- c("## Attendance by percentage of webinar watched")
+  cat(title1.8)
+  
+} else {
+  cat("")
+}
+
+
+```
+
+
+```{r plotAttbyTimeSpent, echo=FALSE, results='asis', out.width= "100%", fig.width= 5}
+
+if ("clickmeeting" %in% data_uni$source & length(unique(data_uni$meeting_name)) <= 8 & knitr::is_html_output()){
+ percseen.plot <- data_uni %>% 
+  mutate(attendee_pct_attended_cat = cut(attendee_pct_attended, breaks = c(0, 0.3, 0.7, 1),
+                                         labels = c("<30%", "30%—70%", ">70%" ))) %>% 
+  filter(attended == 1) %>% 
+  filter(source == "clickmeeting") %>% 
+  ggplot(aes(x = attendee_pct_attended_cat)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)), fill = SonS_palette2[4]) +
+  theme_set(layout) +
+  theme(axis.text.x = element_text(angle = 45, size = rel(2)),
+        axis.text.y = element_text(size = rel(2)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2)),
+        axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(2)),
+        strip.text.y.right = element_text(angle = 0, size = rel(1.5))) +
+  scale_y_continuous(labels=scales::percent) +
+  coord_flip() +
+  labs(x = "% of webinar watched/\nProzentuale Sehdauer des Webinars",
+       y = "Proportion of group/\nAnteil der Gruppe") +
+  facet_grid(meeting_name_short ~.) 
+percseen.plot
+
+} else if ("clickmeeting" %in% data_uni$source & length(unique(data_uni$meeting_name)) <= 8 & (is_word_output() | knitr::is_latex_output()) ){
+  percseen.plot <- data_uni %>% 
+  mutate(attendee_pct_attended_cat = cut(attendee_pct_attended, breaks = c(0, 0.3, 0.7, 1),
+                                         labels = c("<30%", "30%—70%", ">70%" ))) %>% 
+  filter(attended == 1) %>% 
+  filter(source == "clickmeeting") %>% 
+  ggplot(aes(x = attendee_pct_attended_cat)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)), fill = SonS_palette2[4]) +
+  theme_set(layout) +
+  theme(axis.text.x = element_text(angle = 45, size = rel(1)),
+        axis.text.y = element_text(size = rel(1)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)),
+        axis.title.x = element_text(angle = 0, hjust = 0.5, size = rel(1)),
+        strip.text.y.right = element_text(angle = 0, size = rel(0.6))) +
+  scale_y_continuous(labels=scales::percent) +
+  coord_flip() +
+  labs(x = "% of webinar watched/\nProzentuale Sehdauer des Webinars",
+       y = "Proportion of group/\nAnteil der Gruppe") +
+  facet_grid(meeting_name_short ~.) 
+percseen.plot 
+
+} else {
+  cat("")
+}
+
+```
+
+
+
+```{r makeheader1.9, echo=FALSE, results='asis'}
+if (length(unique(data_uni$meeting_name)) > 1 & params$lang == "DE"){
+  title1.9 <- c("## Durschnittliche Anzahl der Webinare für die sich Personen angemeldet haben und Anzahl der Personen, die sich für mehr als ein Webinar angemeldet haben, pro Webinar")
+  cat(title1.9)
+  
+} else if (length(unique(data_uni$meeting_name)) > 1 & params$lang == "EN"){
+  title1.9 <- c("## Mean number of webinars for which people signed up and number of participants who registered for more than one webinar, for each webinar")
+  cat(title1.9)
+  
+} else {
+  cat("")
+}
+```
+
+
+```{r listnSignups, echo=FALSE, results='asis'}
+if (length(unique(data_uni$meeting_name)) > 1){
+  n.signups <- data_uni %>% group_by(besucher, registration_email) %>% summarise(n_webinars = length(unique(meeting_name)), webinars = meeting_name_short, attended = attended, block = block) %>% distinct(webinars, .keep_all = TRUE)
+  multi.signups <- n.signups %>% filter(n_webinars > 1) %>% arrange(desc(n_webinars))
+  
+  sum.n.signups <- n.signups %>%
+    group_by(besucher, block, webinars) %>%
+    summarise(mean_n_websignedup = mean(n_webinars))
+  
+  sum.n.multisign <- multi.signups %>%
+    group_by(besucher, block, webinars) %>%
+    summarise(who_signedup_multi = mean(length(unique(registration_email))))
+  
+  signups.sum <- sum.n.signups %>% 
+    left_join(sum.n.multisign) %>%
+    arrange(desc(who_signedup_multi))
+  
+  signups.sum.simple <- signups.sum %>% 
+    group_by(besucher, block) %>%
+    summarise(mean_n_websignedup = mean(mean_n_websignedup), 
+              mean_who_signedup_multi = mean(who_signedup_multi))
+  
+   
+} else {
+  cat("")
+}
+
+```
+
+```{r printSignupGraph, echo=FALSE, results='asis'}
+if (exists("signups.sum.simple") == TRUE & length(unique(data_uni$besucher)) == 2 & is_html_output()){
+signups.plot <- ggplot(data = signups.sum.simple, aes(x = fct_reorder(besucher, mean_n_websignedup), y = mean_n_websignedup, fill = block)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = SonS_palette1) +
+  theme(axis.text.x = element_text(size = rel(2)),
+        axis.text.y = element_text(size = rel(2)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2)),
+        axis.title.x = element_text(size = rel(2)),
+        legend.text = element_text(size = rel(2)),
+        legend.position = "bottom") +
+  labs(x = "Region/Besucher",
+       y = "Mean number of webinars signed up for/\nDurschnittlische Anzahl der Webinare \nfür die sich Personen angemeldet haben")
+
+signups.plot
+
+} else if (exists("signups.sum.simple") == TRUE & length(unique(data_uni$besucher)) == 2){
+  signups.plot <- ggplot(data = signups.sum.simple, aes(x = fct_reorder(besucher, mean_n_websignedup), y = mean_n_websignedup, fill = block)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = SonS_palette1) +
+  theme(axis.text.x = element_text(size = rel(1)),
+        axis.text.y = element_text(size = rel(1)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)),
+        axis.title.x = element_text(size = rel(1)),
+        legend.text = element_text(size = rel(1)),
+        legend.position = "bottom") +
+  labs(x = "Region/Besucher",
+       y = "Mean number of webinars signed up for/\nDurschnittlische Anzahl der Webinare \nfür die sich Personen angemeldet haben")
+
+signups.plot
+}  else {
+  cat("")
+}
+
+```
+
+
+```{r printSignupTable, echo=FALSE, results='asis'}
+
+if(exists("signups.sum") == TRUE & knitr::is_html_output()){
+  DT::datatable(signups.sum, filter = "top")
+} else if (exists("signups.sum") == TRUE & is_word_output()) {
+  flextable::flextable(signups.sum) %>%
+   set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+} else {
+  cat("")
+}
+
+```
+
+
+```{r multiSignupsbyWebinar, echo=FALSE, results='asis'}
+if (exists("multi.signups") == TRUE) {
+  web.sum <- multi.signups %>% distinct(registration_email, .keep_all = TRUE) %>% summarise(webinars = n_webinars,   attended = sum(attended), prop_attended = attended/webinars)
+ 
+} else {
+  cat("")
+}
+
+```
+
+
+
+# `r ifelse(params$lang == "DE", "Woher kommen die Teilnehmer?", "Where are participants from?") `
+## `r ifelse(params$lang == "DE", "Ursprungsland: Weltweit", "Country of origin: worldwide")`
+
+```{r makeCountryTables, echo=FALSE}
+# Create category "Other" for countries with less than 3 registrations.
+r.country <- data_uni %>% 
+  group_by(registration_country_full) %>% 
+  summarise(registrations = n()) %>% 
+  arrange(desc(registrations)) %>% 
+  mutate(registration_country_lumped = case_when(registrations < 3 ~ "Other (< 3)", TRUE ~ registration_country_full))
+
+a.country <- data_uni %>% 
+  filter(attended == 1) %>% 
+  group_by(attendee_country_full) %>% 
+  summarise(attendees = n()) %>% 
+  arrange(desc(attendees)) %>% 
+  mutate(attendee_country_lumped = case_when(attendees < 3 ~ "Other (< 3)", TRUE ~ attendee_country_full))
+
+```
+
+
+```{r plotRegAttbyCountry, echo=FALSE}
+
+if (length(unique(data_uni$registration_country_full)) > 15 & knitr::is_html_output()){ 
+  reg.plot <- ggplot(data = r.country, aes(x = fct_reorder(registration_country_lumped, registrations), y = registrations)) +
+  geom_col(fill = SonS_palette2[1]) +
+  coord_flip() +
+  xlab("Country/Land") + 
+  ylab("Registrations/Anzahl der Anmeldungen") +
+    theme(axis.text.x = element_text(size = rel(2)),
+          axis.text.y = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(2)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2)))
+reg.plot
+
+} else if (length(unique(data_uni$registration_country_full)) > 15 & is_word_output() | knitr::is_html_output()){
+ reg.plot <- ggplot(data = r.country, aes(x = fct_reorder(registration_country_lumped, registrations), y = registrations)) +
+  geom_col(fill = SonS_palette2[1]) +
+  coord_flip() +
+  xlab("Country/Land") + 
+  ylab("Registrations/Anzahl der Anmeldungen") +
+    theme(axis.text = element_text(size = rel(1)),
+          axis.title.x = element_text(size = rel(1)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)))
+reg.plot
+
+} else if (length(unique(data_uni$registration_country_full)) < 15 & knitr::is_html_output()){
+  reg.plot <- ggplot(data = r.country, aes(x = fct_reorder(registration_country_full, registrations), y = registrations)) +
+  geom_col(fill = SonS_palette2[1]) +
+  coord_flip() +
+  xlab("Country/Land") + 
+  ylab("Registrations/Anzahl der Anmeldungen") +
+  theme(axis.text = element_text(size = rel(2)),
+        axis.title.x = element_text(size = rel(2)),
+        axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2)))
+reg.plot
+
+} else if (length(unique(data_uni$registration_country_full)) < 15 & (is_word_output() | knitr::is_latex_output())){
+ reg.plot <- ggplot(data = r.country, aes(x = fct_reorder(registration_country_full, registrations), y = registrations)) +
+  geom_col(fill = SonS_palette2[1]) +
+  coord_flip() +
+  xlab("Country/Land") + 
+  ylab("Registrations/Anzahl der Anmeldungen") +
+    theme(axis.text = element_text(size = rel(1)),
+          axis.title.x = element_text(size = rel(1)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)))
+  reg.plot
+}  
+  
+if (length(unique(data_uni$attendee_country_full)) >= 15 & knitr::is_html_output()){
+  att.plot <- ggplot(data = a.country, aes(x = fct_reorder(attendee_country_lumped, attendees), y = attendees)) +
+  geom_col(fill = SonS_palette2[1]) +
+  coord_flip() +
+  xlab("Country/Land") + 
+  ylab("Attendees/Anzahl der Teilnehmer") +
+    theme(axis.text = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(2)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2)))
+att.plot
+
+} else if (length(unique(data_uni$attendee_country_full)) >= 15 & (is_word_output() | knitr::is_latex_output())){
+att.plot <- ggplot(data = a.country, aes(x = fct_reorder(attendee_country_lumped, attendees), y = attendees)) +
+  geom_col(fill = SonS_palette2[1]) +
+  coord_flip() +
+  xlab("Country/Land") + 
+  ylab("Attendees/Anzahl der Teilnehmer") +
+    theme(axis.text = element_text(size = rel(1)),
+          axis.title.x = element_text(size = rel(1)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)))
+att.plot  
+
+} else if (length(unique(data_uni$attendee_country_full)) < 15 & knitr::is_html_output()){
+  att.plot <- ggplot(data = a.country, aes(x = fct_reorder(attendee_country_full, attendees), y = attendees)) +
+  geom_col(fill = SonS_palette2[1]) +
+  coord_flip() +
+  xlab("Country/Land") + 
+  ylab("Attendees/Anzahl der Teilnehmer") +
+    theme(axis.text = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(2)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2)))
+att.plot
+
+} else if (length(unique(data_uni$attendee_country_full)) < 15 & (is_word_output() | knitr::is_latex_output())){
+ att.plot <- ggplot(data = a.country, aes(x = fct_reorder(attendee_country_full, attendees), y = attendees)) +
+  geom_col(fill = SonS_palette2[1]) +
+  coord_flip() +
+  xlab("Country/Land") + 
+  ylab("Attendees/Anzahl der Teilnehmer") +
+    theme(axis.text = element_text(size = rel(1)),
+          axis.title.x = element_text(size = rel(1)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)))
+att.plot
+   
+}
+```
+
+```{r makeWorldTab, echo=FALSE}
+# world map
+map.world <- map_data('world')
+```
+
+```{r sumWorldMap, echo=FALSE, include=FALSE}
+map.world %>% group_by(region) %>% summarise() 
+```
+
+
+```{r makeRegAttCountryTab, echo=FALSE}
+r.country <- r.country %>% mutate(registration_country_full = case_when(registration_country_full == "Gibraltar" ~ "UK",
+                                               registration_country_full == "North Macedonia" ~ "Macedonia",
+                                               registration_country_full == "United Kingdom" ~ "UK",
+                                               registration_country_full == "United States of America" ~ "USA",
+registration_country_full == "Czechia" ~ "Czech Republic",
+registration_country_full == "Bosnia & Herzegovina" ~ "Bosnia and Herzegovina",
+                                               TRUE ~ registration_country_full))
+
+a.country <- a.country %>% mutate(attendee_country_full = case_when(                                    attendee_country_full == "North Macedonia" ~ "Macedonia",
+                                               attendee_country_full == "United Kingdom" ~ "UK",
+                                               attendee_country_full == "United States of America" ~ "USA",
+attendee_country_full == "Czechia" ~ "Czech Republic",
+TRUE ~ attendee_country_full))
+```
+
+```{r joinRegAttMapTabs, echo=FALSE}
+map.country <- left_join(map.world, r.country, by = c("region" = "registration_country_full"))
+
+map.country.a <- left_join(map.world, a.country, by = c("region" = "attendee_country_full"))
+```
+
+```{r make_maps, echo=FALSE, out.width = "100%"}
+reg.map <- ggplot(map.country, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = registrations)) +
+  scale_fill_gradient(low = SonS_palette1[1], high = SonS_palette1[3]) +
+  theme(plot.background = element_rect(fill = "#333333"),
+        panel.background = element_rect(fill = "#333333"),
+        legend.background = element_blank(),
+        text = element_text(color = "#EEEEEE"),
+        panel.grid = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        aspect.ratio = 0.5,
+        legend.title = element_text(size = rel(1.8)),
+        legend.text = element_text(size = rel(1.6))) +
+  borders(database = "world", colour = "black")
+reg.map
+ 
+
+att.map <- ggplot(map.country.a, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = attendees)) +
+  scale_fill_gradient(low = SonS_palette1[1], high = SonS_palette1[3]) +
+  theme(plot.background = element_rect(fill = "#333333"),
+        panel.background = element_rect(fill = "#333333"),
+        legend.background = element_blank(),
+        text = element_text(color = "#EEEEEE"),
+        panel.grid = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        aspect.ratio = 0.5,
+        legend.title = element_text(size = rel(1.8)),
+        legend.text = element_text(size = rel(1.6))) +
+  borders(database = "world", colour = "black")
+att.map
+```
+
+```{r tableRegbyCountry, echo=FALSE}
+
+if(knitr::is_html_output()){
+  DT::datatable(r.country[, c(1, 2)], filter = "top")
+  } else {
+  flextable::flextable(r.country[, c(1, 2)]) %>%
+    set_header_labels(registration_country_full = "Registration Country", registrations = "Registrations") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+  }
+```
+
+```{r tableAttbyCountry, echo=FALSE}
+
+if(knitr::is_html_output()){
+  DT::datatable(a.country[, c(1, 2)], filter = "top")
+  
+} else {
+  flextable::flextable(a.country[, c(1, 2)]) %>%
+    set_header_labels(attendee_country_full = "Attendee Country", attendees = "Attendees") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+  }
+
+```
+
+
+## `r ifelse(params$lang == "DE", "Ursprungsland: nur Europa", "Country of origin: Europe only")`
+
+```{r makeEuroMapTab, echo=FALSE}
+europe <- c("Austria","Belgium","Bulgaria","Croatia","Cyprus", "Czech Rep.", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden", "UK", "Norway", "Belarus", "Ukraine", "Turkey", "Bosnia and Herzegovina")
+
+r.eu_country <- r.country %>% filter(registration_country_full%in%europe)
+
+#anti_join(r.eu_country, map.world, by = c('registration_country_full' = 'region')) # no mismatches
+
+r.map.eu <- left_join(map.world, r.eu_country, by = c("region" = "registration_country_full")) 
+
+r.map.eu <- r.map.eu %>% filter(region%in%europe)
+
+
+a.eu_country <- a.country %>% filter(attendee_country_full%in%europe)
+
+#anti_join(a.eu_country, map.world, by = c('attendee_country_full' = 'region')) # no mismatches
+
+a.map.eu <- left_join(map.world, a.eu_country, by = c("region" = "attendee_country_full")) 
+
+a.map.eu <- a.map.eu %>% filter(region%in%europe)
+
+```
+
+```{r plotEuroRegAtt, echo=FALSE, out.width = "100%"}
+r.eumap <- ggplot(r.map.eu, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = registrations)) +
+  scale_fill_gradient(low = SonS_palette1[1], high = SonS_palette1[3]) +
+  theme(plot.background = element_rect(fill = "#333333"),
+        panel.background = element_rect(fill = "#333333"),
+        legend.background = element_blank(),
+        text = element_text(color = "#EEEEEE"),
+        panel.grid = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        legend.title = element_text(size = rel(1.8)),
+        legend.text = element_text(size = rel(1.6)),
+        aspect.ratio = 1.3) + 
+  borders(database = "world", regions = europe, colour = "black") 
+r.eumap
+
+a.eumap <- ggplot(a.map.eu, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = attendees)) +
+  scale_fill_gradient(low = SonS_palette1[1], high = SonS_palette1[3]) +
+  theme(plot.background = element_rect(fill = "#333333"),
+        panel.background = element_rect(fill = "#333333"),
+        legend.background = element_blank(),
+        panel.grid = element_blank(),
+        panel.grid.major.y = element_blank(),
+        text = element_text(color = "#EEEEEE"),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        legend.title = element_text(size = rel(1.8)),
+        legend.text = element_text(size = rel(1.6)),
+        aspect.ratio = 1.3) + 
+  borders(database = "world", regions = europe, colour = "black") 
+a.eumap
+```
+
+
+
+```{r makeheader2.3, echo=FALSE, results='asis'}
+if ("DE" %in% data_uni$besucher & params$lang == "DE"){
+  title2.3 <- c("## Nur deutsche Teilnehmer: Bundesland")
+  cat(title2.3)
+  
+} else if ("DE" %in% data_uni$besucher & params$lang == "EN"){
+  title2.3 <- c("## German participants only: State")
+  cat(title2.3)
+  
+} else {
+  cat("")
+}
+```
+
+
+```{r makeDERegAttbyBundesland, echo=FALSE, results='asis'}
+if ("DE" %in% data_uni$besucher){
+  city <- data_uni %>% filter(registration_country_full == "Germany") %>% 
+  group_by(registration_bundesland) %>% 
+  summarise(registrations = n(), attendees = sum(attended)) %>% filter(registration_bundesland != "NA") %>% arrange(desc(attendees)) 
+
+} else {
+  cat("")
+}
+
+
+```
+
+```{r plotDERegAtt, echo=FALSE}
+if(exists("city") == TRUE & knitr::is_html_output()){
+  r.citymap <- ggplot(data = city, aes(x = fct_reorder(registration_bundesland, registrations), y = registrations)) +
+  geom_col(fill = SonS_palette1[4]) +
+  coord_flip() +
+  xlab("State/Bundesland") +
+  ylab("Registrations/Anmeldungen") +
+    theme(axis.text = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(2.2)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2.2)))
+  r.citymap
+} else if (exists("city") == TRUE & (is_word_output() | knitr::is_latex_output())){
+  r.citymap <- ggplot(data = city, aes(x = fct_reorder(registration_bundesland, registrations), y = registrations)) +
+  geom_col(fill = SonS_palette1[4]) +
+  coord_flip() +
+  xlab("State/Bundesland") +
+  ylab("Registrations/Anmeldungen") +
+    theme(axis.text = element_text(size = rel(1)),
+          axis.title.x = element_text(size = rel(1)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)))
+  r.citymap
+
+} else {
+  cat("")
+}
+
+if (exists("city") == TRUE & knitr::is_html_output()){
+ a.citymap <- ggplot(data = city, aes(x = fct_reorder(registration_bundesland, attendees), y = attendees)) +
+  geom_col(fill = SonS_palette1[4]) +
+  coord_flip() +
+  xlab("State/Bundesland") +
+  ylab("Attendees/Teilnehmer") +
+    theme(axis.text = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(2.2)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(2.2)))
+ a.citymap
+ 
+} else if (exists("city") == TRUE & (is_word_output() | knitr::is_latex_output())){ 
+a.citymap <- ggplot(data = city, aes(x = fct_reorder(registration_bundesland, attendees), y = attendees)) +
+  geom_col(fill = SonS_palette1[4]) +
+  coord_flip() +
+  xlab("State/Bundesland") +
+  ylab("Attendees/Teilnehmer") +
+    theme(axis.text = element_text(size = rel(1)),
+          axis.title.x = element_text(size = rel(1)),
+          axis.title.y = element_text(angle = 90, vjust = 0.8, hjust = 0.5, size = rel(1)))
+ a.citymap
+   
+} else {
+  cat("")
+}
+
+```
+
+```{r makeRegAttbyBundesTable, echo=FALSE, results='asis'}
+if (exists("city") == TRUE){
+  if(knitr::is_html_output()){
+  DT::datatable(city, filter = "top")
+} else {
+  flextable::flextable(city) %>%
+    set_header_labels(registrations = "Registrations", attendees = "Attendees") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+}
+} else {
+ cat("") 
+}
+#knitr::knit_exit()
+#datatable(city, filter = "top")
+```
+
+# `r ifelse(params$lang == "DE", "Fächer von Interesse", "Subjects of interest")`
+```{r summariseSubInfo, echo=FALSE}
+
+fach_long <- data_uni %>% 
+  select(meeting_name_short, besucher, fach_1, fach_2, fach_3, fach_4, fach_5, fach_6, fach_7) %>%
+  pivot_longer(cols = c(fach_1, fach_2, fach_3, fach_4, fach_5, fach_6, fach_7), 
+               names_to = "fach_n",
+               values_to = "fach_name")
+
+fach_sum <- fach_long %>% group_by(fach_name, besucher) %>% summarise(n = n())
+fach_incl <- fach_sum %>% filter(!is.na(fach_name) & fach_name != "ignorieren") %>% arrange(desc(n))# remove irrelevant subject categories
+```
+
+```{r wordcloudSub, echo=FALSE, fig.width= 7}
+set.seed(123)
+
+wordcloud(words = fach_incl$fach_name, freq =  fach_incl$n, min.freq = 1, max.words=200, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2"))
+
+
+```
+
+
+```{r plotSubInt, echo=FALSE}
+if (is_html_output()){
+fach.plot <- ggplot(data = fach_incl, aes(x = fct_reorder(fach_name, n), y = n)) +
+  geom_col(fill = SonS_palette2[3])  +
+  coord_flip() +
+  xlab("Subject/Fach") +
+  ylab("Frequency/Frequenz") +
+    theme(axis.text = element_text(size = rel(2)),
+          axis.title.x = element_text(size = rel(2)),
+          axis.title.y = element_text(size = rel(2), angle = 90, vjust = 0.8, hjust = 0.5),
+          strip.text = element_text(size = rel(2))) +
+  facet_grid(besucher ~ ., scales = "free_y")
+fach.plot
+} else {
+ fach.plot <- ggplot(data = fach_incl, aes(x = fct_reorder(fach_name, n), y = n)) +
+  geom_col(fill = SonS_palette2[3])  +
+  coord_flip() +
+  xlab("Subject/Fach") +
+  ylab("Frequency/Frequenz") +
+    theme(axis.text = element_text(size = rel(1)),
+          axis.title.x = element_text(size = rel(1)),
+          axis.title.y = element_text(size = rel(1), angle = 90, vjust = 0.8, hjust = 0.5),
+          strip.text = element_text(size = rel(1))) +
+  facet_grid(besucher ~ ., scales = "free_y")
+fach.plot 
+  
+}
+```
+
+
+```{r TabSubInt, echo=FALSE}
+if(knitr::is_html_output()){
+  DT::datatable(fach_incl, filter = "top")
+} else {
+  flextable::flextable(fach_incl) %>%
+   set_header_labels(fach_name = "Subject", besucher = "Region", n = "Frequency") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+}
+```
+
+
+```{r makeheader4, echo=FALSE, results='asis'}
+if ("clickmeeting" %in% data_uni$source & params$lang == "DE"){
+  title4 <- c("# Verwendete Geräte (nur Clickmeeting)")
+  cat(title4)
+  
+} else if ("clickmeeting" %in% data_uni$source & params$lang == "EN"){
+  title4 <- c("# Devices used (clickmeeting only)")
+  cat(title4)
+  
+} else {
+  cat("")
+}
+
+```
+
+
+```{r makeDeviceTab, echo=FALSE, results='asis'}
+if ("clickmeeting" %in% data_uni$source){
+eval_devprint <- TRUE
+dev.detailed <- data_uni %>% 
+  select(meeting_name_short, besucher, attendee_device_cat, source, attended) %>% 
+  filter(source == "clickmeeting" & attended == 1) %>% 
+  group_by(besucher, meeting_name_short, attendee_device_cat) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+dev <- data_uni %>% 
+  select(meeting_name_short, besucher, attendee_device_cat, source, attended) %>% 
+  filter(source == "clickmeeting" & attended == 1) %>% 
+  group_by(besucher, attendee_device_cat) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+} else {
+  eval_devprint <- FALSE
+  cat("")
+
+}
+```
+
+```{r devTabs, echo =FALSE, eval=eval_devprint}
+if(knitr::is_html_output()){
+  DT::datatable(dev, filter = "top")
+  datatable(dev.detailed, filter = "top")
+} else {
+  flextable::flextable(dev) %>%
+   # set_header_labels(registrations = "Registrations", attendees = "Attendees") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+  flextable::flextable(dev.detailed) %>%
+    set_header_labels(besucher = "Region", attendee_device_cat = "Device type", n = "Frequency") %>%
+    set_table_properties(width = 1, layout = "autofit") %>%
+    knitr::knit_print()
+}
+
+```
+
+
+
+

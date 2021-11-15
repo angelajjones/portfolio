@@ -1,0 +1,802 @@
+---
+title: "Clickmeeting Daten Bereinigung und Zusammenfügung"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=FALSE}
+library(here)
+```
+
+# Load library and graphics settings
+```{r, echo=FALSE}
+source(here("scripts/config.R")) 
+source(here("scripts/ci.R")) 
+```
+
+# Daten importieren (registrations_attendees_all, aus dem Clickmeeting API, Bereinigt_Webinare-Teams-DE-2020 und Bereinigte-Daten-EU-Teams-2020-und-2021 aus Microsoft Teams):
+
+Wenn das Teams-API aktualisiert wird, wird vielleicht ein neues scraping Script gebraucht, um solche Daten herunterzuladen. Aber hier werden in jeden Fall die Daten von beiden Quellen (Clickmeeting und Teams) zusammengeführt.
+
+```{r}
+# load clickmeeting data
+registrations <- read.csv(here("data", "raw", "Webinare", "api_clickmeeting", "registrations_attendees_all.csv"), sep = ";", encoding = "UTF-8")
+
+# load Teams DE data
+registrations_t <- read.csv(here("data", "raw", "Webinare", "api_clickmeeting", "meeting_and_session_times_Bereinigt_Webinare-Teams-DE-2020.csv"), sep = ";", encoding = "UTF-8")
+
+# load Teams EU data
+registrations_t_en <- read.csv(here("data", "raw", "Webinare", "api_clickmeeting", "meeting_and_session_times_Bereinigte-Daten-EU-Teams-2020-und-2021.csv"), sep = ";", encoding = "UTF-8")
+
+```
+
+# Import des Fächer-Wörterbuchs 
+```{r}
+dictionary <- read_excel(here("data", "processed", "clickmeeting", "nicht_personenbezogene_daten", "list_subject_categories_DE_EN.xlsx"), col_types = "text", col_names = FALSE)
+
+# Transpose dictionary
+dictionary <- dictionary %>% 
+  t() %>% 
+  # convert to tibble
+  as_tibble() %>% 
+  # use first row as column names
+  row_to_names(1)
+```
+
+# Einen neuen Ordner für verarbeitete Daten erstellen (CSVs für internen Gebrauch) und Rohdaten als Excel-Datei speichern (die verarbeiteten Daten und Listen von Teilnehmern für zukünftigen Kontakt werden später als Excel-Tabellen in derselbe Datei zugestellt):
+
+```{r}
+dir.create(here("data", "raw", "Webinare", "api_clickmeeting", "clean"))
+
+wb <- createWorkbook()
+
+addWorksheet(wb, sheetName = "raw_data")
+writeData(wb, sheet = "raw_data", x = registrations, colNames = TRUE, rowNames = FALSE)
+saveWorkbook(wb, file = here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "webinar_registrations_attendees_data.xlsx"), overwrite = TRUE)
+
+```
+
+
+# Datenstruktur erkunden
+Bitte beachten, dass dieser Chunk nicht nötig für die Daten-Bereinigung ist. Solche Chunks sind nützlich, wenn mann die Struktur und Art von Variablen begutachten möchte, oder um zu checken, ob es irgendwo Fehler gibt. Ähnliche Chunks werden in diesem Skript genau zu diesem Zweck verwendet.Um die Daten zu bereinigen muss mann diese Chunks aber nicht unbedingt ausführen. 
+
+```{r}
+dim(registrations)
+colnames(registrations)
+
+dim(registrations_t)
+colnames(registrations_t)
+
+dim(registrations_t_en)
+colnames(registrations_t_en)
+```
+
+
+# Variablen mit unleserlichen Namen umbenennen (Clickmeeting)
+Manche Variablen haben unleserliche Namen, weil sie zu lang sind. Hier werden diese Variablen umbenannt und bekommen leserliche Namen. Bitte beachten, falls es in Zukunft neue Variablen geben sollte, müsste man ihre Namen auch checken und, falls nötig, hier umbenennen.  
+
+```{r}
+registrations <- registrations %>%
+  rename(datenschutz_erlaubt = registration_ich_stimme_zu_dass_meine_daten_zur_durchfuhrung_der_veranstaltung_von_science_on_stage_deutschland_e_v_verarbeitet_werden_weitere_informationen_unter_www_science_on_stage_de_number_x2f_clickmeeting,
+         langzeiteval_erlaubt = registration_science_on_stage_deutschland_darf_mich_bis_zu_12_monate_nach_der_veranstaltung_im_rahmen_von_langzeitevaluationen_online_umfragen_kontaktieren_max_3_e_mails,
+         newsletter_abo = registration_ich_mochte_den_science_on_stage_deutschland_newsletter_abonnieren,
+         fach_interesse_EN = registration_what_subjects_do_you_teach_or_in_case_of_non_teachers_are_you_especially_interested_in,
+         datenschutz_erlaubt_EN = registration_i_hereby_agree_that_my_personal_data_given_here_will_be_used_on_project_related_basis_by_science_on_stage_europe_e_v_specific_information_can_be_found_at_www_science_on_stage_eu_number_x2f_clickmeeting,
+         newsletter_abo_EN = registration_i_would_like_to_receive_the_science_on_stage_europe_newsletter_you_will_receive_a_separate_email_to_confirm_your_subscription,
+         langzeiteval_erlaubt_EN = registration_i_agree_that_science_on_stage_contacts_me_for_long_term_evaluation_purposes_online_survey_up_to_12_months_after_the_event_max_3_emails,
+         fach_interesse = registration_welche_unterrichtsfacher_unterrichten_sie_oder_sind_fur_sie_besonders_interessant_bei_nicht_lehrkraften,
+         newsletter_abo_EN2 = registration_i_would_like_to_receive_the_science_on_stage_europe_newsletter_you_will_receive_a_separate_email_to_confirm_your_subscription_2,
+         langzeiteval_erlaubt_EN2 = registration_i_agree_that_science_on_stage_contacts_me_for_long_term_evaluation_purposes_online_surveys_until_up_to_12_months_after_the_event_max_3_emails,
+         langzeiteval_erlaubt_EN3 = registration_i_agree_that_science_on_stage_contacts_me_for_long_term_evaluation_purposes_online_surveys_until_up_to_12_months_after_the_event,
+         datenschutz_erlaubt_EN2 = registration_i_have_read_the_data_bla)
+```
+
+## Checken, dass die neuen Variablen korrekt erstellt wurden
+Dieser Chunk ist auch nicht unbedingt für die Bereinigung nötig.
+
+```{r}
+colnames(registrations)
+```
+
+## Wie viele Daten fehlen in jede Variable (Clickmeeting)?
+Auch nicht für die Bereignigung nötig, aber wenn es neue Dateien gäbe, wäre es ganz gut diesen Chunk auszuführen.
+
+```{r}
+purrr:::map(registrations, ~sum(is.na(.)))
+```
+
+In der originalen  Clickmeeting-Datei gab es verschiedene leere Reihen, bei denen auch die Datenschutzentscheidung leer war. Diese leeren Reihen, und generell alle Reihen, in denen es keine positive Datenschutzentscheidung gibt, werden hier unten gelöscht.
+
+## Reihen mit leeren Datenschutzvariablen entfernen (Clickmeeting) und Variablen wenn nötig umbenennen (Teams)
+
+```{r}
+reg_permitted <- registrations %>% filter(datenschutz_erlaubt == 1 | datenschutz_erlaubt_EN == 1 | datenschutz_erlaubt_EN2 == 1)
+
+reg_t_permitted <- registrations_t %>% filter(datenschutz_erlaubt_DE == 1) %>% rename(datenschutz_erlaubt = datenschutz_erlaubt_DE, langzeiteval_erlaubt = langzeiteval_DE, fach_interesse = fach_interesse_DE, meeting_name = X.U.FEFF.Title, attendee_country_iso3 = ISO.3) %>% mutate(source = "teams")
+
+reg_t_en_permitted <- registrations_t_en %>% filter(Datenschutz_erlaubt_EN == 1) %>% rename(datenschutz_erlaubt_IN = Datenschutz_erlaubt_EN, langzeiteval_erlaubt_IN = langzeiteval_EN, meeting_name = File, attendee_country_iso3 = ISO.3)
+```
+
+## Nickname-Variable zu den Teams-Daten hinzufügen
+Generell ist es wichtig, so viele Variablen und Variable-Namen zwischen Clickmeeting- und Teams-Daten anzupassen, sodass diese Dateien danach einfacher zusammengefügt werden können. 
+
+```{r}
+reg_t_permitted <- reg_t_permitted %>% mutate(registration_visitor_nickname = paste(registration_name, registration_last_name, sep = " "))
+
+reg_t_en_permitted <- reg_t_en_permitted %>% mutate(registration_visitor_nickname = paste(registration_name, registration_last_name, sep = " "))
+```
+
+## Anwesenheitsvariable in den Teams-Daten bereinigen
+```{r}
+reg_t_permitted <- reg_t_permitted %>% mutate(attended = case_when(attended == 1 ~ 1, TRUE ~ 0))
+# check attendance data makes sense given known participant numbers
+reg_t_permitted %>% count(attended)
+
+
+reg_t_en_permitted <- reg_t_en_permitted %>% mutate(attended = case_when(attended == 1 ~ 1, TRUE ~ 0))
+# check attendance data makes sense given known participant numbers
+reg_t_en_permitted %>% count(attended)
+```
+
+
+### Fehlenden Daten (NA) im neuen Datenrahmen checken
+
+```{r}
+purrr:::map(reg_permitted, ~sum(is.na(.)))
+purrr:::map(reg_t_permitted, ~sum(is.na(.)))
+purrr:::map(reg_t_en_permitted, ~sum(is.na(.)))
+```
+
+# Variablen mit gleichem Inhalt zusammenführen (Clickmeeting)
+
+```{r}
+reg_permitted <- reg_permitted %>% mutate(datenschutz_erlaubt_IN =
+                                                              case_when(datenschutz_erlaubt_EN == 1 ~ 1,
+                                                                        datenschutz_erlaubt_EN2 == 1 ~ 1),
+                                                            newsletter_abo_IN = 
+                                                              case_when(newsletter_abo_EN == 1 ~ 1,
+                                                                        newsletter_abo_EN2 == 1 ~ 1),
+                                                            langzeiteval_erlaubt_IN = 
+                                                              case_when(langzeiteval_erlaubt_EN == 1 ~ 1,
+                                                                        langzeiteval_erlaubt_EN2 == 1 ~ 1,
+                                                                        langzeiteval_erlaubt_EN3 == 1 ~ 1)) %>%
+ 
+   select(-c(datenschutz_erlaubt_EN, datenschutz_erlaubt_EN2, newsletter_abo_EN, newsletter_abo_EN2, langzeiteval_erlaubt_EN, langzeiteval_erlaubt_EN2, langzeiteval_erlaubt_EN3, registration_email_address)) # removes now unnecessary columns
+
+                                                            
+```
+
+Bitte beachten, dass die Variable registration_email_address hier oben leer war, und wir deswegen nur die Variable registration_email behalten haben. Dies könnte sich zukünftig ändern. In diesem Fall (wenn registration_email_address nicht leer ist) sollte man die registration_email entsprechend anpassen. 
+
+# Entfernen der (Clickmeeting) Anwesenden, die mit einer science-on-stage.de E-Mail assoziiert sind (dadurch werden auch Test-Sessions entfernt)
+
+```{r}
+reg_permitted <- reg_permitted %>% filter(str_detect(string = registration_email, pattern = "@science-on-stage.de", negate = FALSE) == FALSE) 
+
+reg_permitted <- reg_permitted %>% filter(str_detect(string = registration_email, pattern = "@science-on-stage.eu", negate = FALSE) == FALSE)
+```
+
+
+# Anwesenheits-Variable erstellen (Clickmeeting)
+
+```{r}
+reg_permitted <- reg_permitted %>% mutate(attended = case_when(attendee_start_date != "NA" ~ 1, TRUE ~ 0))
+```
+ 
+# Source-Variable für die Zusammenführung mit den Teams-Daten erstellen
+
+```{r}
+reg_permitted <- reg_permitted %>% mutate(source = "clickmeeting")
+```
+
+# Ländervariablen bereinigen (Clickmeeting)
+
+Die ISO-Ländercodes sind international anerkannte Codes, die jedes Land und die meisten abhängigen Gebiete als Kombination aus zwei (iso2) oder drei (iso3) Buchstaben bezeichnen; es ist wie ein Akronym, welches für ein Land oder einen Staat steht.
+Bitte den folgenden Chunk nur einmal pro Skript-Ausführung laufen lassen. Wenn er zweimal nacheinander ausgeführt wird, werden die Daten nicht korrekt bereinigt. 
+
+```{r}
+reg_permitted <- reg_permitted %>% mutate(
+  registration_geo_country = countrycode(registration_geo_country, origin = "iso2c", destination = "iso3c"),
+  registration_country_full = countrycode(registration_geo_country, origin = "iso3c", destination = "country.name"), 
+  attendee_country_full = countrycode(attendee_country_iso3, origin = "iso3c", destination = "country.name"),
+  attendee_country_full = 
+    case_when(attendee_country_iso3 == "NA" ~ registration_country_full, 
+              TRUE ~ attendee_country_full))
+```
+
+# Die Variable "attendee_country_full" zu den Teams-Daten hinzufügen
+```{r}
+reg_t_permitted <- reg_t_permitted %>% mutate(registration_country_full = countrycode(attendee_country_iso3, origin = "iso3c", destination = "country.name"),
+                                              attendee_country_full = case_when(attended == 1 ~ registration_country_full, TRUE ~ 'NA'))
+
+reg_t_en_permitted <- reg_t_en_permitted %>% mutate(registration_country_full = countrycode(attendee_country_iso3, origin = "iso3c", destination = "country.name"),
+                                                    attendee_country_full = case_when(attended == 1 ~ registration_country_full, TRUE ~ 'NA'))
+```
+
+# Bundeslanddaten bereinigen (Clickmeeting)
+Auch wenn dieser Schritt für die neuen Daten nicht benötigt wird, weil diese Art von Daten zukünftig automatisch erstellt werden, sollte man diesen Chunk sowieso laufen lassen, wenn die Originaldaten noch vom API heruntergeladen werden. 
+
+```{r}
+reg_permitted <- reg_permitted %>% mutate(registration_geo_city = case_when(registration_geo_city == "Cologne" ~ "Köln", 
+                                                        registration_geo_city == "Koln" ~ "Köln", 
+                                                        registration_geo_city == "Munich" ~ "München", 
+                                                        registration_geo_city == "Munster" ~ "Münster", 
+                                                        registration_geo_city != "Cologne" | registration_geo_city != "Koln" | registration_geo_city != "Munich" | registration_geo_city != "Munster" ~ registration_geo_city),
+                        registration_bundesland = case_when(registration_bundesland == "NRW" ~ "Nordrhein-Westfalen",
+                                                            registration_bundesland == "M-V" ~ "Mecklenburg-Vorpommern",
+                                                            registration_bundesland == "Bawü" ~ "Baden-Württemberg",
+                                                            registration_bundesland == "By" ~ "Bayern",
+                                                            str_detect(string = registration_bundesland, pattern = "^Baden") == TRUE ~ "Baden-Württemberg",               
+                                                            registration_bundesland == "nrw" ~ "Nordrhein-Westfalen",
+                                                            registration_bundesland == "hamburg" ~ "Hamburg",
+                                                            registration_bundesland == "Brandeburg" ~ "Brandenburg",
+                                                            registration_geo_city == "Berlin" ~ "Berlin",
+                                                            registration_geo_city == "Stuttgart" ~ "Baden-Württemberg",
+                                                            registration_geo_city == "Wuppertal" ~ "Nordrhein-Westfalen", 
+                                                            registration_geo_city == "Langenfeld" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Aachen" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Bergisch Gladbach" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Bielefeld" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Bochum" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Bonn" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Düsseldorf" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Essen" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Frankfurt am Main" ~ "Hessen",
+                                                            registration_geo_city == "Fulda" ~ "Hessen",
+                                                            registration_geo_city == "Hamburg" ~ "Hamburg",
+                                                            registration_geo_city == "Hamm" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Hanau" ~ "Hessen",
+                                                            registration_geo_city == "Herford" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Hilden" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Hürth" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Karlsruhe" ~ "Baden-Württemberg",
+                                                            registration_geo_city == "Koblenz" ~ "Rheinland-Pfalz",
+                                                            registration_geo_city == "Köln" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Krefeld" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Langenfeld" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Mannheim" ~ "Baden-Württemberg",
+                                                            registration_geo_city == "Meerbusch" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Moers" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "München" ~ "Bayern",
+                                                            registration_geo_city == "Münster" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Norderstedt" ~ "Schleswig-Holstein",
+                                                            registration_geo_city == "Numbrecht" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Oberhausen" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Peiting" ~ "Bayern",
+                                                            registration_geo_city == "Porta Westfalica" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Pulheim" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Raesfeld" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Reutlingen" ~ "Baden-Württemberg",
+                                                            registration_geo_city == "Ruedesheim am Rhein" ~ "Hessen",
+                                                            registration_geo_city == "Schwalmtal" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Solingen" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Wegberg" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Witten" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Wulfrath" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Wuppertal" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Celle" ~ "Niedersachsen",
+                                                            registration_geo_city == "Aachen" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Augsburg" ~ "Bayern",
+                                                            registration_geo_city == "Bad Kreuznach" ~ registration_bundesland,
+                                                            registration_geo_city == "Bad Soden-salmunster" ~ registration_bundesland,
+                                                            registration_geo_city == "Bordesholm" ~ registration_bundesland,
+                                                            registration_geo_city == "Brunsbuettel" ~ registration_bundesland,
+                                                            registration_geo_city == "Cuxhaven" ~ "Niedersachsen",
+                                                            registration_geo_city == "Daenischenhagen" ~ registration_bundesland,
+                                                            registration_geo_city == "Dinslaken" ~ registration_bundesland,
+                                                            registration_geo_city == "Dortmund" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Dresden" ~ registration_bundesland,
+                                                            registration_geo_city == "Drolshagen" ~ registration_bundesland,
+                                                            registration_geo_city == "Duisburg" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Düren" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Ehndorf" ~ registration_bundesland,
+                                                            registration_geo_city == "Elmshorn" ~ "Schleswig-Holstein",
+                                                            registration_geo_city == "Erkner" ~ registration_bundesland,
+                                                            registration_geo_city == "Fuerstenberg" ~ registration_bundesland,
+                                                            registration_geo_city == "Furth" ~ registration_bundesland,
+                                                            registration_geo_city == "Gersthofen" ~ registration_bundesland,
+                                                            registration_geo_city == "Giessen" ~ registration_bundesland,
+                                                            registration_geo_city == "Göttingen" ~ registration_bundesland,
+                                                            registration_geo_city == "Grevenbroich" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Gruendau" ~ registration_bundesland,
+                                                            registration_geo_city == "Hagen" ~ registration_bundesland,
+                                                            registration_geo_city == "Hanover" ~ "Niedersachsen",
+                                                            registration_geo_city == "Hattingen" ~ registration_bundesland,
+                                                            registration_geo_city == "Heidelberg" ~ "Baden-Württemberg",
+                                                            registration_geo_city == "Hohenaspe" ~ registration_bundesland,
+                                                            registration_geo_city == "Jever" ~ "Niedersachsen",
+                                                            registration_geo_city == "Kassel" ~ registration_bundesland,
+                                                            registration_geo_city == "Kleinmachnow" ~ registration_bundesland,
+                                                            registration_geo_city == "Kornwestheim" ~ registration_bundesland,
+                                                            registration_geo_city == "Köthen" ~ registration_bundesland,
+                                                            registration_geo_city == "Kuhren" ~ registration_bundesland,
+                                                            registration_geo_city == "Ladbergen" ~ registration_bundesland,
+                                                            registration_geo_city == "Laichingen" ~ registration_bundesland,
+                                                            registration_geo_city == "Landshut" ~ registration_bundesland,
+                                                            registration_geo_city == "Langenhagen" ~ registration_bundesland,
+                                                            registration_geo_city == "Lauf an der Pegnitz" ~ registration_bundesland,
+                                                            registration_geo_city == "Leipzig" ~ registration_bundesland,
+                                                            registration_geo_city == "Leisel" ~ "Rheinland-Pfalz",
+                                                            registration_geo_city == "Lich" ~ registration_bundesland,
+                                                            registration_geo_city == "Lohne" ~ registration_bundesland,
+                                                            registration_geo_city == "Ludwigshafen Am Rhein" ~ registration_bundesland,
+                                                            registration_geo_city == "Mainz" ~ registration_bundesland,
+                                                            registration_geo_city == "Merzenich" ~ registration_bundesland,
+                                                            registration_geo_city == "Merzig" ~ registration_bundesland,
+                                                            registration_geo_city == "Miltenberg" ~ registration_bundesland,
+                                                            registration_geo_city == "Mirow" ~ registration_bundesland,
+                                                            registration_geo_city == "Mosbach" ~ registration_bundesland,
+                                                            registration_geo_city == "Nauheim" ~ registration_bundesland,
+                                                            registration_geo_city == "Neubrandenburg" ~ registration_bundesland,
+                                                            registration_geo_city == "Neuss" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Neuwied" ~ registration_bundesland,
+                                                            registration_geo_city == "Nidderau" ~ registration_bundesland,
+                                                            registration_geo_city == "Norderstedt" ~ "Schleswig-Holstein",
+                                                            registration_geo_city == "Numbrecht" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Nurnberg" ~ "Bayern",
+                                                            registration_geo_city == "Oberelbert" ~ registration_bundesland,
+                                                            registration_geo_city == "Ohringen" ~ registration_bundesland,
+                                                            registration_geo_city == "Paderborn" ~ registration_bundesland,
+                                                            registration_geo_city == "Pforzheim" ~ registration_bundesland,
+                                                            registration_geo_city == "Plochingen" ~ registration_bundesland,
+                                                            registration_geo_city == "Preussisch Oldendorf" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Saarbrucken" ~ registration_bundesland,
+                                                            registration_geo_city == "Schlaubetal" ~ registration_bundesland,
+                                                            registration_geo_city == "Selk" ~ registration_bundesland,
+                                                            registration_geo_city == "Stuhr" ~ registration_bundesland,
+                                                            registration_geo_city == "Tuttlingen" ~ registration_bundesland,
+                                                            registration_geo_city == "Ulm" ~ registration_bundesland,
+                                                            registration_geo_city == "Waldalgesheim" ~ registration_bundesland,
+                                                            registration_geo_city == "Wedel" ~ "Schleswig-Holstein",
+                                                            registration_geo_city == "Weimar" ~ registration_bundesland,
+                                                            registration_geo_city == "Werder" ~ registration_bundesland,
+                                                            registration_geo_city == "Westerstede" ~ registration_bundesland,
+                                                            registration_geo_city == "Wolfratshausen" ~ "Bayern",
+                                                            registration_geo_city == "Woltersdorf" ~ registration_bundesland,
+                                                            registration_geo_city == "Rostock" ~ "Mecklenburg-Vorpommern",
+                                                            registration_geo_city == "Hemmingen" ~ "Niedersachsen",
+                                                            registration_geo_city == "Bottrop" ~ "Nordrhein-Westfalen",
+                                                            registration_geo_city == "Braunschweig" ~ "Niedersachsen"))
+```
+
+
+# Teams und Clickmeeting Daten zusammenführen
+```{r}
+reg_teams <- full_join(reg_t_permitted, reg_t_en_permitted)
+reg_all <- full_join(reg_permitted, reg_teams)
+```
+
+```{r}
+glimpse(reg_all)
+reg_all %>% filter(source == "teams") %>% distinct(meeting_name) # check all Teams meetings are present
+```
+
+
+# Deutsche und internationale Besucher in einer neue Variable identifizieren 
+
+```{r}
+reg_all <- reg_all %>% mutate(besucher = case_when(datenschutz_erlaubt_IN == 1 ~ "EU", datenschutz_erlaubt == 1 ~ "DE"))
+```
+
+Wie viele Teilnehmer gibt es in jede Gruppe (Deutsche und Internationale Teilnehmer)?
+
+```{r}
+reg_all %>% count(besucher) 
+```
+
+# Datum von Datum und Uhrzeit (kombinierte) Daten trennen und als einzige Variable erstellen
+Dies soll mit einigen FUnktionen dem Bericht helfen.
+
+```{r}
+reg_all <- reg_all %>% mutate(registration_date =                                                              str_before_first(registration_registration_date, "T"),
+                                                            registration_time = str_after_first(registration_registration_date, "T"),
+                                                            webinar_date = str_before_first(meeting_starts_at, "T"),
+                                                            webinar_time = str_after_first(meeting_starts_at, "T"))
+
+```
+
+
+# Variable erstellen, die die Jahreszeit des Webinars definiert (ob es zwischen Januar und Juni [block 1] oder Juli und Dezember [block 2] stattgefunden hat)
+
+```{r}
+reg_all$webinar_date <- as_date(reg_all$webinar_date) #convert column from string to datetime
+reg_all$registration_date <- as_date(reg_all$registration_date) #convert column from string to datetime
+
+```
+
+```{r}
+reg_all <- reg_all %>% mutate(block = if_else(month(webinar_date) > 6, "block 2", "block 1")) #block column indicates which time of the year the webinar/seminar took place
+```
+
+# Neue Variablen mit Jahr und Monat jedes Webinars separat erstellen 
+Dies soll das manuelles Filtern im html-Bericht erleichtern.
+
+```{r}
+reg_all <- reg_all %>% mutate(monat = month(webinar_date), jahr = year(webinar_date))
+```
+
+# Geräte von Teilnehmern in eine neue Variable kategorisieren
+Also, ob das Gerät mobil oder stationär war.
+
+```{r}
+reg_all$attendee_device <- replace_na(data = reg_all$attendee_device, replace = "none") #replace empty rows with "none"
+
+reg_all <- reg_all %>% mutate(attendee_device_cat = case_when( 
+  str_detect(attendee_device, pattern = "iPhone", negate = FALSE) == TRUE ~ "mobile",
+  str_detect(attendee_device, pattern = "iPad", negate = FALSE) == TRUE ~ "mobile",
+  str_detect(attendee_device, pattern = "Android", negate = FALSE) == TRUE ~ "mobile",
+  attendee_device == "none" ~ "none", TRUE ~ "desktop"))
+```
+
+
+Bestätigen, dass die Variablen korrekt erstellt wurden (nochmals nicht für die Bereingung nötig)
+
+```{r}
+glimpse(reg_all)
+```
+
+Unnötig gewordenen Variablen entfernen:
+
+```{r}
+reg_all <- reg_all %>% select(-c(registration_country))
+```
+
+
+# Operationen mit Uhrzeit/Datum
+
+## Manuelle Änderung der Uhrzeiten
+
+Hier werden die Uhrzeiten von Meetings korrigiert, die bei der Erstellung falsch eingegeben wurden
+
+```{r}
+reg_time <- reg_all %>% 
+  # Meeting end time is corrected to 17:30h in Germany
+    mutate(meeting_ends_at = ifelse(meeting_id == 5328949 & session_id == 23695277, 
+                                    "2021-06-09T17:30:00+02:00", meeting_ends_at))
+```
+
+## Variablen mit Zeitbezug erstellen
+
+Zunächst werden alle Variablen mit Zeitbezug (Uhrzeit bzw. Datum) von String-Variablen ("Buchstabenvariablen") in `datetime`-Variablen in deutscher Zeitzone umgewandelt.
+
+```{r}
+reg_time <- reg_time %>% 
+  tibble() %>% 
+  mutate(session_start_date = as_datetime(session_start_date, tz = "Europe/Berlin"),
+         session_end_date = as_datetime(session_end_date, tz = "Europe/Berlin"),
+         attendee_start_date = as_datetime(attendee_start_date, tz = "Europe/Berlin"),
+         attendee_end_date = as_datetime(attendee_end_date, tz = "Europe/Berlin"),
+         meeting_starts_at = as_datetime(meeting_starts_at, tz = "Europe/Berlin"),
+         meeting_ends_at = as_datetime(meeting_ends_at, tz = "Europe/Berlin"),
+         meeting_starts_at_hour = hour(meeting_starts_at),
+         registration_registration_date = as_datetime(registration_registration_date, tz = "Europe/Berlin"),
+         registration_registration_confirmed = as_datetime(registration_registration_confirmed, tz = "Europe/Berlin"))
+```
+
+Webinarteilnehmer, deren Start- und Endzeitpunkt vor bzw. nach dem Webinar liegt, werden herausgefiltert.
+
+```{r}
+# Filter out (concluded) attendee entries before + after meeting
+reg_time <- reg_time %>% 
+  mutate(attendee_start_end_before_meeting = attendee_start_date < meeting_starts_at & attendee_end_date < meeting_starts_at,
+         attendee_start_end_after_meeting = attendee_start_date > session_end_date & attendee_end_date > session_end_date) %>% 
+  filter(attendee_start_end_before_meeting == FALSE | is.na(attendee_start_end_before_meeting)) %>% 
+  filter(attendee_start_end_after_meeting  == FALSE | is.na(attendee_start_end_after_meeting))
+```
+
+Danach werden Zeitvariablen für die Webinar-Registrierten erstellt. Als Webinar-Intervall wird der Zeitraum zwischen `meeting_starts_at` und `session_end_date` definiert, da die Webinar-Session z. T. schon vor dem geplanten Startzeitpunkt des Webinars gestartet wurde.
+
+```{r}
+# attendee_start before meeting_start gets meeting_start
+reg_time <- reg_time %>% 
+  mutate(attendee_start_date = ifelse(attendee_start_date < meeting_starts_at, meeting_starts_at, attendee_start_date),
+         attendee_end_date = ifelse(attendee_end_date > session_end_date, session_end_date, attendee_end_date),
+         attendee_start_date = as_datetime(attendee_start_date, tz = "Europe/Berlin"),
+         attendee_end_date = as_datetime(attendee_end_date, tz = "Europe/Berlin"),
+         # time interval watched for every entry
+         attendee_interval = as.duration(attendee_end_date - attendee_start_date),
+         webinar_interval = as.duration(session_end_date - meeting_starts_at))
+```
+
+
+## Session-Fehlstarts löschen
+
+```{r}
+reg_time <- reg_time %>% 
+  mutate(session_start_und_ende_vor_meeting_start = session_start_date < meeting_starts_at &
+         session_end_date < meeting_starts_at,
+         session_start_und_ende_nach_meeting_ende = session_start_date > meeting_ends_at &
+         session_end_date > meeting_ends_at,
+         session_start_oder_ende_NA = ifelse(is.na(session_start_date) | is.na(session_end_date), TRUE, FALSE),
+         ausgeschlossen = ifelse(session_start_und_ende_vor_meeting_start == TRUE |
+                                 session_start_und_ende_nach_meeting_ende == TRUE |
+                                 session_start_oder_ende_NA == TRUE, TRUE, FALSE),
+         # MS Teams are not being excluded even if the criteria apply
+         ausgeschlossen = ifelse(source == "teams", FALSE, ausgeschlossen))
+```
+
+Folgende Sessions werden ausgeschlossen, weil der Start der Session (`session_start_date`) UND das Ende der Session (`session_start_date`) vor dem Start des Meetings (`meeting_starts_at`) liegen.
+
+```{r}
+reg_time %>% 
+  distinct(meeting_id, session_id, .keep_all = TRUE) %>%
+  filter(session_start_und_ende_vor_meeting_start == TRUE) %>% 
+  select(meeting_id,	meeting_name,	meeting_starts_at,	meeting_ends_at, session_start_date, session_end_date)
+```
+
+Folgende Sessions werden ausgeschlossen, weil der Start der Session (`session_start_date`) UND das Ende der Session (`session_start_date`) nach dem Start des Meetings (`meeting_ends_at`) liegen.
+
+```{r}
+reg_time %>% 
+  distinct(meeting_id, session_id, .keep_all = TRUE) %>%
+  filter(session_start_und_ende_nach_meeting_ende == TRUE) %>% 
+  select(meeting_id, meeting_name,	meeting_starts_at,	meeting_ends_at, session_start_date, session_end_date)
+```
+
+Folgende Sessions werden ausgeschlossen, weil der Start der Session (`session_start_date`) ODER das Ende der Session (`session_start_date`) in den Daten nicht vorhanden ist (d. h. der Wert fehlt, was in R als `NA` dargestellt wird), also 
+nach dem Start des Meetings (`meeting_ends_at`) liegen.
+
+```{r}
+reg_time %>% 
+  distinct(meeting_id, session_id, .keep_all = TRUE) %>%
+  filter(session_start_oder_ende_NA == TRUE) %>% 
+  select(meeting_id, meeting_name,	meeting_starts_at,	meeting_ends_at, session_start_date, session_end_date)
+```
+
+```{r}
+reg_time <- reg_time %>% 
+  filter(ausgeschlossen == FALSE | is.na(ausgeschlossen))
+```
+
+
+## Mehrfacheinträge löschen
+
+```{r}
+reg_time <- reg_time %>% 
+  # Exclude duplicates with exact same start and end date
+  distinct(meeting_id, session_id, registration_email, attendee_start_date, attendee_end_date, .keep_all = TRUE) %>%
+  group_by(meeting_id, session_id, registration_email, attendee_start_date) %>%
+  # Exclude entries where start and end date are the same (i. e. they watched the webinar for 0 minutes)
+  filter(attendee_start_date != attendee_end_date | is.na(attendee_start_date)) %>% 
+  arrange(session_id, registration_email) %>% 
+  group_by(session_id, registration_email) %>%
+  mutate(# time interval watched per person (sum of every entry per person)
+         attendee_interval_total = as.duration(sum(attendee_interval)),
+         # percentage watched per person
+         attendee_pct_attended = attendee_interval_total / webinar_interval) %>% 
+  ungroup() %>% 
+  distinct(meeting_id, session_id, registration_email, .keep_all = TRUE) %>% 
+  # very few people watch more than 100% (e.g. because they login with 2 devices)
+  # their watch time is corrected to 100%
+  mutate(attendee_pct_attended = ifelse(attendee_pct_attended > 1, 1, attendee_pct_attended))
+```
+
+
+## Registrierungszeitpunkt
+
+```{r}
+reg_time <- reg_time %>% 
+  mutate(registration_before_meeting = as.duration(meeting_starts_at - registration_registration_date)) 
+
+```
+
+## Anwesenheit per Uhrzeit: Variable erstellen
+```{r}
+timeofday <- function(datetime) {
+  paste(
+    c("Morning/Vormittag", "Afternoon/Nachmittag", "Evening/Abend", "Night/Nacht")[
+      cut(as.numeric(format(datetime, "%H%M")), c(530, 1200, 1659, 2000))
+      ]
+  )
+}
+
+reg_time <- reg_time %>% mutate(webinar_timeofday = timeofday(meeting_starts_at)) 
+```
+
+
+# Fächer bereinigen
+
+Zusammenlegung der deutschen und englischen Fachnennungen
+
+```{r}
+# Merge english and german subjects
+reg_subs <- reg_time %>% 
+  mutate(fach = ifelse(is.na(fach_interesse_EN), fach_interesse, fach_interesse_EN))
+```
+
+Fachbezeichnungen, die aus mehren Wörtern bestehen, werden als ein Wort definiert (z. B.  "computer science" als "computer_science")
+
+```{r}
+reg_subs <- reg_subs %>% 
+  # Englische Fachbezeichnunge
+  mutate(fach = str_replace(fach, "computer science", "computer_science"),
+         fach = str_replace(fach, "Computer Science", "Computer_Science"),
+         fach = str_replace(fach, "computer sciences", "computer_sciences"),
+         fach = str_replace(fach, "Computer_Sciences", "Computer_Sciences"),
+         fach = str_replace(fach, "earth science", "earth_science"),
+         fach = str_replace(fach, "Earth Science", "Earth_Science"),
+         fach = str_replace(fach, "earth sciences", "earth_sciences"),
+         fach = str_replace(fach, "Earth Sciences", "Earth_Sciences")) 
+```
+
+Hier werden Probleme mit der UTF-8-Kodierung aufgelistet:
+
+```{r}
+check_text(reg_subs$fach)
+```
+
+Bevor im nächsten Schritt die Nennung der Fächer in der Freifeldtexteingabe in einzelne Wörter aufgesplittet werden, werden Zeichen die vom Algorithmus nicht als Wortgrenzen erkannt werden durch dasselbe Zeichen und zusätzlich ein Leerzeichen ersetzt. Auf diese Weise erkennt der Algorithmus die Wortgrenzen korrekt.
+
+```{r}
+reg_subs$fach <- replace_emoticon(reg_subs$fach)
+reg_subs$fach <- strip(reg_subs$fach, char.keep = c(",", "/", " "))
+reg_subs$fach <- str_replace(reg_subs$fach, "/", "/ ")
+reg_subs$fach <- str_replace(reg_subs$fach, ",", ", ")
+```
+
+Zuordnung der Fachbezeichnungen zu den Fächernamen im Wörterbuch.
+
+```{r}
+# Unnest subject interests tp longer
+clickmeeting_longer <- reg_subs %>% 
+  tibble() %>% 
+  # Split free text entry on word boundaries
+  mutate(fach = str_split(string = fach, pattern = boundary(type = "word"))) %>% 
+  # Unnest list column to longer
+  unnest_longer(col = fach)
+  
+# Dictionary to Long-Format
+dictionary_longer <- dictionary %>% 
+  pivot_longer(cols = starts_with("bezeichnung_"), names_to = "bezeichnung_nr", values_to = "bezeichnung", values_drop_na = TRUE)
+
+# Merge dictionary with dataset
+clickmeeting_matched <- clickmeeting_longer %>%
+  # Select only variables needed for matching
+  select(meeting_id, session_id, registration_email, fach) %>% 
+  left_join(dictionary_longer, by = c("fach" = "bezeichnung")) %>% 
+  distinct(meeting_id, session_id, registration_email, match_DE, .keep_all = TRUE) %>%  
+  arrange(meeting_id, session_id, registration_email, match_DE) %>% 
+  group_by(meeting_id, session_id, registration_email) %>% 
+  mutate(nr = str_c("fach_", row_number())) %>% 
+  pivot_wider(id_col = c(meeting_id, session_id, registration_email),
+              names_from = nr,
+              values_from = match_DE)
+
+# Merge subjects with rest of clickmeeting data
+reg_subs <- reg_subs %>% 
+  tibble() %>% 
+  left_join(clickmeeting_matched, by = c("meeting_id", "session_id", "registration_email"))
+```
+
+Erstellung des neuen, aktualisierten Wörterbuchs.
+
+```{r}
+# Merge clickmeeting data and subject dictionary
+clickmeeting_dictionary <- clickmeeting_longer %>% 
+  select(meeting_id, session_id, registration_email, fach) %>% 
+  full_join(dictionary_longer, by = c("fach" = "bezeichnung")) %>% 
+  # Exclude rows where no subject was named
+  filter(!is.na(fach))
+
+# Print message if dictionary needs to be updated
+rows_not_matched <- nrow(filter(distinct(clickmeeting_dictionary, fach, match_DE), is.na(match_DE) | match_DE == "Nicht_zugeordnet"))
+if (rows_not_matched > 0) {
+  print(rep("*", 100))
+  cat("\n\n")
+  usethis::ui_warn(glue::glue("\n\n\n\n Es wurden {rows_not_matched} Bezeichnungen gefunden, die sich noch nicht im Fächer-Wörterbuch (data/processed/clickmeeting/nicht_personenbezogene_daten/list_subject_categories_DE_EN.csv) befinden. \n\n Bitte aktualisieren sie das Fächer-Wörterbuch, indem sie die Bezeichnung der Zeile \"Nicht_zugeordnet\" ausschneiden und in die richtige Zeile einfügen.\n\n\n\n"))
+  print(rep("*", 100))
+} else {
+  print("Das Fächer-Wörterbuch ist auf dem aktuellen Stand. Es wurden keine Bezeichnungen gefunden, die sich noch nicht im Fächer-Wörterbuch befinden.")
+}
+
+# Convert dictionary to Wide-Format
+clickmeeting_dictionary_wide <- clickmeeting_dictionary %>% 
+  select(match_DE, match_EN, fach) %>% 
+  # Only unique subject-label entries
+  distinct() %>% 
+  arrange(match_DE, fach) %>% 
+  replace_na(list(match_DE = "Nicht_zugeordnet", match_EN = "Not_assigned")) %>% 
+  group_by(match_DE) %>% 
+  mutate(nr = str_c("bezeichnung_", row_number())) %>% 
+  ungroup() %>% 
+  pivot_wider(names_from = nr, values_from = fach)
+
+### Transpose Dictionary
+# Extract column names
+first_row <- colnames(clickmeeting_dictionary_wide) %>% c()
+
+dictionary_transposed <- first_row %>% 
+  # insert column names as first row
+  rbind(clickmeeting_dictionary_wide) %>% 
+  # janitor::nam
+  t() %>% 
+  # rownames_to_column()
+  as_tibble() %>% 
+  row_to_names(1)
+
+write_xlsx(dictionary_transposed, path = here("data", "processed", "clickmeeting", "nicht_personenbezogene_daten", "list_subject_categories_DE_EN.xlsx"))
+```
+
+# Listen von Leute, die einverstanden sind für eine Langzeitevaluation des Webinars kontaktiert zu werden.
+
+```{r}
+langzeitevalDE <- reg_subs %>% filter(besucher == "DE", langzeiteval_erlaubt == 1) %>% select(registration_visitor_nickname, registration_email, meeting_name, langzeiteval_erlaubt, webinar_date, source)
+langzeitevalDE <- unique(langzeitevalDE)
+
+langzeitevalIN <- reg_subs %>% filter(besucher == "EU", langzeiteval_erlaubt_IN == 1) %>% select(registration_visitor_nickname, registration_email, meeting_name, langzeiteval_erlaubt_IN, webinar_date, source)
+langzeitevalIN <- unique(langzeitevalIN)
+```
+
+# Listen von Leute, die die Newsletter möchten.
+
+```{r}
+aboDE <- reg_subs %>% filter(besucher == "DE", newsletter_abo == 1) %>% select(registration_visitor_nickname, registration_email, newsletter_abo, webinar_date, source)
+
+aboDE <- unique(aboDE)
+
+
+aboEU <- reg_subs %>% filter(besucher == "EU", newsletter_abo_IN == 1) %>% select(registration_visitor_nickname, registration_email, newsletter_abo_IN, webinar_date, source)
+aboEU <- unique(aboEU)
+```
+
+# Gekürzte Webinarnamen in einer neue Variable erstellen
+Dies soll bei der Datenvisualisierung später helfen. 
+```{r}
+reg_subs <- reg_subs %>% mutate(meeting_name_short = sub(".*EU_......_", "", x = meeting_name),
+                                meeting_name_short = str_trunc(meeting_name_short, width = 25, side = "right"),
+                                meeting_name_short = case_when(
+                                 str_detect(meeting_name, pattern = "primary") == TRUE ~ str_c(meeting_name_short, " primary"),
+                                 str_detect(meeting_name, pattern = "secondary") == TRUE ~ str_c(meeting_name_short, " secondary"),
+                                 str_detect(meeting_name, pattern = "Part 1") == TRUE ~ str_c(meeting_name_short, " part 1"),
+                                 str_detect(meeting_name, pattern = "Part 2") == TRUE ~ str_c(meeting_name_short, " part 2"),
+                                 str_detect(meeting_name, pattern = "Teil 1") == TRUE ~ str_c(meeting_name_short, " teil 1"),
+                                 str_detect(meeting_name, pattern = "Teil 2") == TRUE ~ str_c(meeting_name_short, " teil 2"),
+                                 TRUE ~ meeting_name_short)) 
+
+
+
+```
+
+Neue Namen checken:
+```{r}
+reg_subs %>% distinct(meeting_name)
+```
+
+
+# Bereinigte Daten als Excel-Dateien und CSV speichern
+
+```{r}
+ # replace non-UTF characters in strings with UTF-8 encodable ones, otherwise writeData throws an error and corrupts the whole xlsx workbook once saved.
+
+#langzeitevalIN <- langzeitevalIN %>%  mutate_if(is.character, ~str_replace(., '[^ -~]', '')) 
+#langzeitevalDE <- langzeitevalDE %>%  mutate_if(is.character, ~str_replace(., '[^ -~]', ''))
+#aboEU <- aboEU %>%  mutate_if(is.character, ~str_replace(., '[^ -~]', '')) 
+#aboDE <- aboDE %>%  mutate_if(is.character, ~str_replace(., '[^ -~]', '')) 
+
+
+addWorksheet(wb, sheetName = "clean_data")
+writeData(wb, sheet = "clean_data", x = reg_subs, colNames = TRUE, rowNames = FALSE)
+addWorksheet(wb, sheetName = "newsletter_abo_DE")
+writeData(wb, sheet = "newsletter_abo_DE", x = aboDE, colNames = TRUE, rowNames = FALSE)
+addWorksheet(wb, sheetName = "newsletter_abo_EU")
+writeData(wb, sheet = "newsletter_abo_EU", x = aboEU, colNames = TRUE, rowNames = FALSE)
+addWorksheet(wb, sheetName = "langzeiteval_DE")
+writeData(wb, sheet = "langzeiteval_DE", x = langzeitevalDE, colNames = TRUE, rowNames = FALSE)
+addWorksheet(wb, sheetName = "langzeiteval_EU")
+writeData(wb, sheet = "langzeiteval_EU", x = langzeitevalIN, colNames = TRUE, rowNames = FALSE)
+# now save workbook with all the new sheets
+saveWorkbook(wb, file = here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "webinar_registrations_attendees_data.xlsx"), overwrite = TRUE)
+
+# save individual sheets as csv
+write_csv2(reg_subs, file = here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "registrations_attendees_clean.csv")) # Note that UTF-8 encoding is not preserved in csv but is in RDS
+saveRDS(reg_subs, file = here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "registrations_attendees_clean.rds")) # save as R Dataset to preserve data/time classifications
+
+write_csv2(aboDE, file = here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "newsletter_abo_DE.csv"))
+write_csv2(aboEU, file = here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "newsletter_abo_EU.csv"))
+
+write_csv2(langzeitevalDE, file = here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "langzeiteval_DE.csv"))
+write_csv2(langzeitevalIN, file = here("data", "raw", "Webinare", "api_clickmeeting", "clean",  "langzeiteval_EU.csv"))
+```
