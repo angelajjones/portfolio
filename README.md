@@ -1,5 +1,5 @@
-# My data analytics portfolio
-A collection of my personal data analysis projects which I'm going to keep adding to on my journey in data analytics and visualization. 
+# About this portfolio
+This is a collection of my personal data analysis projects which I'm going to keep adding to on my journey in data analytics and visualization. 
 Here's a [link](https://public.tableau.com/app/profile/angela.jones1086#!/) to the visualizations I've been doing on Tableau Public. I joined recently and am slowly adding to them by taking part in MOOCs and participating in community projects like #MakeoverMonday and #VOTD.
 
 My projects are separated into different folders depending on their focus and/or purpose. 
