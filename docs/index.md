@@ -1,37 +1,16 @@
-## Welcome to GitHub Pages
+# About this portfolio
+Hi! Welcome to my portfolio.
+This is a collection of my personal data analysis projects which I'm going to keep adding to along my journey in data analytics, data science, and visualization. 
+My background is in psychological research: for my PhD, I studied active learning strategies in children and adults, and this is what sparked my interest in all things data! I liked my PhD work and my colleagues a lot, but ultimately, academia turned out not to be a good fit for me in the long term. However, I liked working with data so much that I decided to keep expanding my skills in that area and start applying them in a business setting, and the main purpose of this portfolio is to keep track of my progress. If you're also interested in what I worked on during my PhD though, I've added a section which summarises my studies in an accessible way. 
 
-You can use the [editor on GitHub](https://github.com/angelajjones/portfolio/edit/gh-pages/docs/index.md) to maintain and preview the content for your website in Markdown files.
+I've separated the projects according to their main focus and/or the programming languages and software I used.
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+* [Developing user profiles for an NPO: R and R Markdown]()
+* [Visualising OECD health spending in recent years for #MakeoverMonday: Tableau Dashboard](https://public.tableau.com/app/profile/angela.jones1086#!/)
+* [Answering business questions with SQL Part 1: the Chinook database (SQLite)]()
+* [Answering business questions with SQL Part 2: the Dognition database (MySQL)]()
+* [Machine learning Part 1: Predicting real-estate prices with R]()
+* [Active learning strategies in child- and adulthood: what did I find out?]()
 
-### Markdown
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/angelajjones/portfolio/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+## Goals for the future
+For now, I have decided to focus on building my analytical skills (aside from SQL) using R, because I am already very comfortable with it and I think it's better to build up a thorough understanding of more advanced techniques such as machine learning from a solid base. With a solid understanding of how these techniques work, it will be easier to implement them in another language like Python. I am also curious about other programming languages like Julia, and plan to eventually include them in my skillset as well. 
