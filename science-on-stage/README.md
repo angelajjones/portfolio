@@ -25,4 +25,4 @@ That is why I decided to write separate, short R scripts that they can run much 
 
 ### Sample report
 I also got permission from Science on Stage to provide a sample HTML report to demonstrate what it looked like, **using completely synthetic data**, so the data in the report in no way represents the actual users or attendance patterns of Science on Stage webinars. 
-Since Github can only show HTML files in their raw state, here is a [link]() to the assembled report.
+Since Github can only show HTML files in their raw state, here is a [link](https://htmlpreview.github.io/?https://github.com/angelajjones/portfolio/blob/main/science-on-stage/synthr) to the assembled report.
