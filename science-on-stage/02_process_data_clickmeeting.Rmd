@@ -452,6 +452,7 @@ reg_all <- reg_all %>% select(-c(registration_country))
 Hier werden die Uhrzeiten von Meetings korrigiert, die bei der Erstellung falsch eingegeben wurden
 
 ```{r}
+#### start of section contributed by my teammate
 reg_time <- reg_all %>% 
   # Meeting end time is corrected to 17:30h in Germany
     mutate(meeting_ends_at = ifelse(meeting_id == 5328949 & session_id == 23695277, 
@@ -580,7 +581,7 @@ reg_time <- reg_time %>%
 ```{r}
 reg_time <- reg_time %>% 
   mutate(registration_before_meeting = as.duration(meeting_starts_at - registration_registration_date)) 
-
+#### end of section contributed by my teammate
 ```
 
 ## Anwesenheit per Uhrzeit: Variable erstellen
@@ -603,6 +604,7 @@ Zusammenlegung der deutschen und englischen Fachnennungen
 
 ```{r}
 # Merge english and german subjects
+### start new section contributed by teammate
 reg_subs <- reg_time %>% 
   mutate(fach = ifelse(is.na(fach_interesse_EN), fach_interesse, fach_interesse_EN))
 ```
@@ -718,6 +720,7 @@ dictionary_transposed <- first_row %>%
   row_to_names(1)
 
 write_xlsx(dictionary_transposed, path = here("data", "processed", "clickmeeting", "nicht_personenbezogene_daten", "list_subject_categories_DE_EN.xlsx"))
+#### end section contributed by teammate
 ```
 
 # Listen von Leute, die einverstanden sind für eine Langzeitevaluation des Webinars kontaktiert zu werden.
