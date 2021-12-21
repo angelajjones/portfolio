@@ -11,17 +11,18 @@ The parametrised report format for our report specifically allows users to use a
 * Whether they want data from all webinars within a set date range, whether they just want data for specific (named) webinars, or whether they want to use a combination of both filtering options
 * A range of start and end times for the webinars (e.g., only webinars which took place between 17:00 and 19:00)
 * Whether they want data only from Clickmeeting, or Teams, or both
-* Whether they want data from Webinars in German, in English, or both
+* Whether they want data from webinars in German, in English, or both
 * A file name for the report, or, if the field was left blank, a name was automatically generated with the system date
 
 ## What are the files in this folder?
-This folder contains the scripts I either wrote myself or in collaboration with my teammates, it does not contain the entire workflow we delivered to Science on Stage.
+This folder contains the scripts I either wrote myself or in collaboration with my teammates - it does not contain the entire workflow we delivered to Science on Stage.
 There are two main scripts:
 * `02_process_data_clickmeeting.Rmd` is an R Markdown file which takes care of the data processing (i.e., cleaning and reshaping for use in the analysis script). Users can just select `Run all chunks` in the RStudio interface without worrying too much about the contents.
 * `03_analysis_data_clickmeeting.Rmd` is the main analysis script. Because Science on Stage did not have anyone trained in data analytics or statistics, we decided not to include any statistical models and concentrate on visualising the data instead. 
 
-The other R scripts are the ones I wrote to actually render the report in HTML or Word format, with an eye towards usability. The `03_analysis_data_clickmeeting.Rmd` file is extremely long, complex, and potentially intimidating for non-technical users, and there is a high potential for human error if users were to try to render it directly using the RStudio interface or a rendering function. 
-That is why I decided to write two separate, short R scripts that they can run much more easily to generate the report in the format of their choice. This way, users never even have to open the main analysis script.
+The other R scripts are the ones I wrote to actually render the report in HTML, with an eye towards usability. The `03_analysis_data_clickmeeting.Rmd` file is extremely long, complex, and potentially intimidating for non-technical users, and there is a high potential for human error if users were to try to render it directly using the RStudio interface or a rendering function. 
+That is why I decided to write separate, short R scripts that they can run much more easily to generate the report in the format of their choice. This way, users never even have to open the main analysis script. First, they run `clickmeeting_renderhelp.R`, which defines the functions required to generate the report. Then, they run `clickmeeting_render_html.R`, which prompts the user to define their desired filtering parameters in a browser and generates the actual HTML report. 
 
+### Sample report
 I also got permission from Science on Stage to provide a sample HTML report to demonstrate what it looked like, **using completely synthetic data**, so the data in the report in no way represents the actual users or attendance patterns of Science on Stage webinars. 
 Since Github can only show HTML files in their raw state, here is a [link]() to the assembled report.
