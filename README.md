@@ -8,7 +8,7 @@ I've separated the projects according to their main focus and/or the programming
 <details>
   <summary>[NOTE]</summary>
   
-  > This portfolio is still very much a work in progress, so for some links there isn't any content yet. That just means it's in the works and coming soon!
+  > This portfolio is still very much a work in progress, so for some links there isn't any content yet or it's incomplete. That just means it's in the works and coming soon!
 </details>
 
 
