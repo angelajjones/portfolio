@@ -7,7 +7,7 @@ I've separated the projects according to their main focus and/or the programming
 
 * [Developing user profiles for an NPO: R and R Markdown](https://github.com/angelajjones/portfolio/edit/main/science-on-stage)
 * [Visualising OECD health spending in recent years for #MakeoverMonday: Tableau Dashboard](https://public.tableau.com/app/profile/angela.jones1086/viz/MakeoverMondayCoursera_16365637503300/Dashboard1)
-* [Answering business questions with SQL Part 1: the Chinook database (SQLite)](https://htmlpreview.github.io/?https://github.com/angelajjones/portfolio/blob/main/SQL/dataquest_SQLite.nb.html)
+* [Answering business questions with SQL Part 1: the Chinook database (SQLite)](https://github.com/angelajjones/portfolio/tree/main/SQL)
 * [Answering business questions with SQL Part 2: the Dognition database (MySQL)]()
 * [Machine learning Part 1: Predicting real-estate prices with R]()
 * [Active learning strategies in child- and adulthood: what did I find out?](https://github.com/angelajjones/portfolio/edit/main/science-on-stage)
