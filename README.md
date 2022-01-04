@@ -5,6 +5,10 @@ My background is in psychological research: for my PhD, I studied active learnin
 
 I've separated the projects according to their main focus and/or the programming languages and software I used.
 
+>[!NOTE]
+> 
+> This portfolio is still very much a work in progress, so for some links there isn't any content yet. That just means it's in the works and coming soon!
+
 * [Developing user profiles for an NPO: R and R Markdown](https://github.com/angelajjones/portfolio/edit/main/science-on-stage)
 * [Visualising OECD health spending in recent years for #MakeoverMonday: Tableau Dashboard](https://public.tableau.com/app/profile/angela.jones1086/viz/MakeoverMondayCoursera_16365637503300/Dashboard1)
 * [Answering business questions with SQL Part 1: the Chinook database (SQLite)](https://github.com/angelajjones/portfolio/tree/main/SQL)
