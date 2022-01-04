@@ -1,7 +1,7 @@
 # About this portfolio
 Hi! Welcome to my portfolio.
 This is a collection of my personal data analysis projects which I'm going to keep adding to along my journey in data analytics, data science, and visualization. 
-My background is in psychological research: for my PhD, I studied active learning strategies in children and adults, and this is what sparked my interest in all things data! I liked my PhD work and my colleagues a lot, but ultimately, academia turned out not to be a good fit for me in the long term. However, I liked working with data so much that I decided to keep expanding my skills in that area and start applying them in a business setting, and the main purpose of this portfolio is to keep track of my progress. If you're also interested in what I worked on during my PhD though, I've added a section which summarises my studies in an accessible way. 
+My background is in psychological research: for my PhD, I studied active learning strategies in children and adults, and this is what sparked my interest in all things data! I liked working with data so much that I decided to keep expanding my skills in that area and start applying them in a business setting, and the main purpose of this portfolio is to keep track of my progress. If you're also interested in what I worked on during my PhD though, I've added a section which summarises my studies in an accessible way. 
 
 I've separated the projects according to their main focus and/or the programming languages and software I used.
 
