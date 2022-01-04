@@ -5,7 +5,7 @@ My background is in psychological research: for my PhD, I studied active learnin
 
 I've separated the projects according to their main focus and/or the programming languages and software I used.
 
->[!NOTE]
+>[NOTE]
 > 
 > This portfolio is still very much a work in progress, so for some links there isn't any content yet. That just means it's in the works and coming soon!
 
