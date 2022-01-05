@@ -33,5 +33,19 @@ Considering the ages at which major changes in learning strategies happen, it's 
 
 Another way to think about this issue is from a computational standpoint. In other words, deconstructing active learning strategies into building blocks, and then making abstract models of what these building blocks look like in children, by getting them to do various learning tasks in the form of games. Once broken down in this way, we can see which of the building blocks might change with age. This is the way I went during my PhD, rather than concentrating on cognitive skills. 
 
+### The building blocks of active learning strategies
+Active learning strategies can be theoretically broken down into three main components:
+- The hypothesis space (i.e., the structured mental representation of the information gathered during the task)
+- Sampling strategies (i.e., what learners care about the most when choosing what to look at next, for instance, do they care most about being right or about exploring all their possibilities?)
+- Adaptiveness (i.e., the ability to tailor a strategy to the specific task at hand, because no strategy is best all the time).
 
+Of course, cognitive skills play a huge role too, and are necessary to make all of these building blocks work. The diagram below summarises this breakdown.
+
+<p align = "center">
+  <img src = "https://github.com/angelajjones/portfolio/tree/main/PhD/active_learning_strat.png">
+</p>
+<p align = "center">
+  The building blocks of active learning strategies; every learner needs these to interact with and learn about the world around them.
+</p>
+  
 
