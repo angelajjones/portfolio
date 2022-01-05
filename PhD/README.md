@@ -1,6 +1,6 @@
 # Active learning strategies in child- and adulthood: a brief summary of my PhD work
 In this section of my portfolio, I want to summarise what my PhD work was about in general, and explain the results of a few of the studies I ran. This section is intended for anyone who is curious about this kind of research and just wants to get a general feeling for it.
-For those who want a little bit more depth on some of the theory or technical details, I have added/am in the process of adding collapsible sections with that information, but you don't need to read them to understand everything.
+For those who want a little bit more depth on some of the theory or technical details, I have added/am in the process of adding collapsible sections with that information, but you don't need to read them to get the gist.
 
 Navigate directly to a specific subsection here:
 - [What is active learning?](#what-is-active-learning)
@@ -45,7 +45,13 @@ Of course, cognitive skills play a huge role too, and are necessary to make all 
   <img src="https://github.com/angelajjones/portfolio/blob/main/PhD/active_learning_strat.png" width="600" title="hover text">
 </p>
 <p align = "center">
-  <em>The building blocks of active learning strategies: <br>what every learner needs in order to interact with and learn about the world around them.</em>
+  <em>The building blocks of active learning strategies:<br>what every learner needs in order to interact with and learn about the world around them.</em>
 </p>
- 
+
+Studies have shown that young children are already very adaptable in applying their strategies, so it's unlikely that there would be big enough changes in this building block to cause the observed trademark changes in learning strategies between the ages of 5 and 10. But what about the other two? Very little was known about the hypothesis space or sampling strategies when I started, so I focused on them.
+
+I summarise two of my studies focusing on these building blocks below.
+
+# 1. Changes in the mental representation of information in 5- to 7-year-olds
+
 
