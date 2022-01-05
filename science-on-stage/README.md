@@ -9,6 +9,7 @@ The organisation did not need any dashboards as they deal with reports in PDF an
 ## My team
 Our team of six split into three main sub-teams; mine focused on user data for the webinars, which came from Clickmeeting and Microsoft Teams.
 The parametrised report format for our report specifically allows users to use a GUI to filter the data they want to see in the report, for example, by defining: 
+* Whether they want the report in English or in German
 * Whether they want data from all webinars within a set date range, whether they just want data for specific (named) webinars, or whether they want to use a combination of both filtering options
 * A range of start and end times for the webinars (e.g., only webinars which took place between 17:00 and 19:00)
 * Whether they want data only from Clickmeeting, or Teams, or both
