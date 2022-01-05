@@ -6,6 +6,8 @@ Navigate directly to a specific subsection here, or use the menu icon at the top
 - [What is active learning?](#what-is-active-learning)
 - [Active learning in the lab](#active-learning-in-the-lab)
 - [Why do active learning strategies change with age?](#why-do-active-learning-strategies-change-with-age)
+- [The building blocks of active learning strategies](#the-building-blocks-of-active-learning-strategies)
+- [Changes in how information is represented in the mind](#changes-in-how-information-is-represented-in-the-mind)
 
 # What is active learning?
 Before getting into the main questions I tried to answer through my research, let's think about what **active learning** actually means.
@@ -52,6 +54,5 @@ Studies have shown that young children are already very adaptable in applying th
 
 I summarise two of my studies focusing on these building blocks below.
 
-# Changes in the mental representation of information
-
+# Changes in how information is represented in the mind
 
