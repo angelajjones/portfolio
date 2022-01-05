@@ -45,7 +45,7 @@ Of course, cognitive skills play a huge role too, and are necessary to make all 
   <img src="https://github.com/angelajjones/portfolio/blob/main/PhD/active_learning_strat.png" width="600" title="hover text">
 </p>
 <p align = "center">
-  The building blocks of active learning strategies: what every learner needs in order to interact with and learn about the world around them.
+  <em>The building blocks of active learning strategies: <br>what every learner needs in order to interact with and learn about the world around them.</em>
 </p>
  
 
