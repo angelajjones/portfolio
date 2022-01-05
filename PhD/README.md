@@ -1,4 +1,4 @@
-# Active learning strategies in child- and adulthood: what did I find out?
+# Active learning strategies in child- and adulthood: a brief summary of my PhD work
 In this section of my portfolio, I want to summarise what my PhD work was about in general, and explain the results of a few of the studies I ran. This section is intended for anyone who is curious about this kind of research and just wants to get a general feeling for it.
 For those who want a little bit more depth on some of the theory or technical details, I have added/am in the process of adding collapsible sections with that information, but you don't need to read them to understand everything.
 
