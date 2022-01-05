@@ -2,6 +2,11 @@
 In this section of my portfolio, I want to summarise what my PhD work was about in general, and explain the results of a few of the studies I ran. This section is intended for anyone who is curious about this kind of research and just wants to get a general feeling for it.
 For those who want a little bit more depth on some of the theory or technical details, I have added/am in the process of adding collapsible sections with that information, but you don't need to read them to understand everything.
 
+Navigate directly to a specific subsection here:
+- [What is active learning?](#what-is-active-learning)
+- [Active learning in the lab](#active-learning-in-the-lab)
+- [Why do active learning strategies change with age?](#why-do-active-learning-strategies-change-with-age)
+
 # What is active learning?
 Before getting into the main questions I tried to answer through my research, let's think about what **active learning** actually means.
 Depending on your background, it could mean many different things, but in my field, it refers to **self-directed** learning. In other words, active learning refers to any kind of learning process where the learner is the one who decides what to look at next and when, when they're trying to learn something.
