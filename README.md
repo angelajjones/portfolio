@@ -17,7 +17,7 @@ I've separated the projects according to their main focus and/or the programming
 * [Answering business questions with SQL Part 1: the Chinook database (SQLite)](https://github.com/angelajjones/portfolio/tree/main/SQL)
 * [Answering business questions with SQL Part 2: the Dognition database (MySQL)]()
 * [Machine learning Part 1: Predicting real-estate prices with R]()
-* [Active learning strategies in child- and adulthood: what did I find out?](https://github.com/angelajjones/portfolio/tree/main/PhD)
+* [Active learning strategies in child- and adulthood: a brief summary of my PhD work](https://github.com/angelajjones/portfolio/tree/main/PhD)
 
 ## Goals for the future
 For now, I have decided to focus on building my analytical skills (aside from SQL) using R, because I am already very comfortable with it and I think it's better to build up a thorough understanding of more advanced techniques such as machine learning from a solid base. With a solid understanding of how these techniques work, it will be easier to implement them in another language like Python. I am also curious about other programming languages like Julia, and plan to eventually include them in my skillset as well. 
