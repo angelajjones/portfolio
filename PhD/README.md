@@ -42,6 +42,10 @@ Active learning strategies can be theoretically broken down into three main comp
 Of course, cognitive skills play a huge role too, and are necessary to make all of these building blocks work. The diagram below summarises this breakdown.
 
 <p align="center">
-  <img src="https://github.com/angelajjones/portfolio/blob/main/PhD/active_learning_strat.png" width="350" title="hover text">
+  <img src="https://github.com/angelajjones/portfolio/blob/main/PhD/active_learning_strat.png" width="600" title="hover text">
 </p>
+<p align = "center">
+  The building blocks of active learning strategies: what every learner needs in order to interact with and learn about the world around them.
+</p>
+ 
 
