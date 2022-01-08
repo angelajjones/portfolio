@@ -99,3 +99,7 @@ To summarise, the ability to learn the relationship between monsters' _colour_ a
 In many ways, it makes sense that being able to remember the information they gathered initially would help predict the winning monsters in the test phase, so it's not surprising that 7-year-olds were the best at the prediction task, given that they also remembered the most information about the monsters. However, 5- and 6-year-olds were better at predicting the winning monsters than the quality of their memory suggested, which pointed to something more complicated going on than simply "remember as much as possible and apply that information directly to new items." This is where the structure of their hypothesis space comes in.
 
 #### Reverse-engineering children's hypothesis space
+Broadly speaking, there are 2 possible ways to think about the information about the learning monsters: 
+1. Simply trying to remember the specific order of each monster (e.g., the blue round one is the fastest, followed by the green round one, followed by the blue square one, followed by the green square one). 
+2. Extracting a set of "rules" governing the relationships between the monsters' characteristics (colour and shape) and their speed (e.g., blue monsters are faster than green monsters, and round monsters are faster than square monsters. But if there's a blue square monster [winning colour + losing shape] racing against a green round monster [losing colour + winning shape], the blue one wins because colour is more important than shape in determining speed). 
+
