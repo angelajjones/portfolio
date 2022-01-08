@@ -18,17 +18,24 @@ Navigate directly to a specific section here, or use the menu icon at the top le
 
 # Keep it short: take-home messages about active learning
 - Active learning refers to self-directed learning, where the learner chooses what information to look at next and when. A learning strategy is the particular approach a learner uses to learn and apply new information. 
+
 - Finding out more about how active learning works in children will help us better understand how adults learn and also how to design new, interactive teaching methods that really work.
+
 - Active learning strategies change a lot between the ages of 5 and 10, with 5, 7 and 10 years of age being important milestones. Strategies generally progress from being less efficient and less effective at younger ages to more efficient and more effective at older ages, with characteristic jumps in efficiency happening around age 7 and progressing to almost adult-like levels around age 10. 
+
 - Active learning strategies can be deconstructed into 3 building blocks:
     - the way task-relevant information is structured (i.e., the hypothesis space, which can be thought of as a kind of task-specific database),
     - what learners care about when selecting new information to look at (i.e., sampling strategies),
     - and how flexible they are in adapting their strategies to different contexts (i.e., adaptiveness).
+    
 - Studies have already shown that young children are highly adaptable and can tailor their strategies depending on the learning context, but we know much less about the other two building blocks. 
+
 - My studies have shown that 5- to 7-year-olds think about task-relevant information (i.e., hypothesis space structure) in increasingly complex, sophisticated ways, which allows older children to complete certain learning tasks more successfully. The structure of their hypothesis space also changed between them learning some new information and having to use that information to make predictions. Two conclusions can be drawn from this information: 
         - Being able to use a more sophisticated hypothesis space structure is a necessary step for being able to execute more efficient learning strategies and being a more successful learner overall, and 
         - The stability of the hypothesis space structure throughout a task may be another element which changes with age, with older learners being able to maintain the same structure throughout a whole task. 
+       
 - I have also shown that when searching for new information, adults want to learn as much as possible, but when they have limits to the amount of information they can uncover and have monetary rewards at stake, they're also unwilling to sacrifice the accuracy of their predictions, so they spend some time confirming that what they've already learned is true. In other words, they tend to balance reducing their general uncertainty about their environment with the need to make accurate predictions which will result in high pay-offs. It's important to note that this is true irrespective of the kind of task at hand, as long as it involves some kind of performance-dependent reward. This is notable because it shows that learners recycle certain kinds of learning approaches between some tasks. In children, how much they recycle their strategies between tasks may change with age and this may contribute to some of the observed changes in strategy.
+
 - To conclude, observed changes in active learning strategies between the ages of 5 and 10 are probably driven both by changes in how children mentally represent task-relevant information, and by differences in how much they recycle specific approaches to learning between various kinds of tasks. Further research into these questions will help us properly understand exactly how active learning works, which has potential implications for all kinds of teaching methods. 
 
 
