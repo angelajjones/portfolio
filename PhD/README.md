@@ -61,3 +61,14 @@ It also means that the exact _structure_ of this GPS has a big influence on what
 
 ### The game
 We came up with a basic tablet game for 5- to 7-year-olds, which was divided into a _learning phase_ and a _test phase._ In the learning phase, we showed them four monsters at the top of the screen.
+<p align="center">
+  <img src="https://github.com/angelajjones/portfolio/blob/main/PhD/runners_monsters.png" width="400" title="hover text">
+</p>
+<p align = "center">
+  <em>The four "learning" monsters.</em>
+</p>
+These monsters were all the "cute" kind (potentially upsetting young children with scary monsters is a big no-no) and differed in their _colour_ and _shape_, as you can see in the image above. We told children that these monsters lived on a plant called Apres and loved to race each other. The aim of the game was to learn which _kinds_ of monsters were faster and to learn to predict which ones would win a race. 
+So, in the learning phase, children would watch the learning monsters race and see who the winner was every time, and then in the test phase, they would be shown some new pairs of monsters and asked to predict which one in each pair would win a race. 
+Since this was an _active_ learning task, children chose their own monster pairs to see racing in the learning phase, and dragged each monster down to the starting line on the racetrack. They had to watch at least 3 races, but they could also choose to see as many as they wanted after that point before moving on to the test phase. 
+
+In the test phase, we showed them three new monster pairs, which were different from the learning monsters but had at least one similar characteristic (e.g., a different colour but the same shape, or vice-versa), and asked them which one would win a race between each pair. 
