@@ -67,8 +67,27 @@ We came up with a basic tablet game for 5- to 7-year-olds, which was divided int
 <p align = "center">
   <em>The four "learning" monsters.</em>
 </p>
+
 These monsters were all the "cute" kind (potentially upsetting young children with scary monsters is a big no-no) and differed in their _colour_ and _shape_, as you can see in the image above. We told children that these monsters lived on a plant called Apres and loved to race each other. The aim of the game was to learn which _kinds_ of monsters were faster and to learn to predict which ones would win a race. 
 So, in the learning phase, children would watch the learning monsters race and see who the winner was every time, and then in the test phase, they would be shown some new pairs of monsters and asked to predict which one in each pair would win a race. 
 Since this was an _active_ learning task, children chose their own monster pairs to see racing in the learning phase, and dragged each monster down to the starting line on the racetrack. They had to watch at least 3 races, but they could also choose to see as many as they wanted after that point before moving on to the test phase. 
 
 In the test phase, we showed them three new monster pairs, which were different from the learning monsters but had at least one similar characteristic (e.g., a different colour but the same shape, or vice-versa), and asked them which one would win a race between each pair. 
+
+<p align="center">
+  <img src="https://github.com/angelajjones/portfolio/blob/main/PhD/runners_testmonsters.png" width="700" title="hover text">
+</p>
+<p align = "center">
+  <em>The monster pairs in the test phase. The first one had the same shapes as some of the learning monsters but a different colour (red).<br>The second one had the same colours as the learning monsters but a different shape (triangular).<br> The last one had slightly different shapes and colours but they were similar enough that it was possible to predict which monster was faster using the information gathered during learning. </em>
+</p>
+
+After this prediction task, we showed them the learning monsters again and asked them to arrange them on a podium from fastest to slowest, to check how well they remembered what they had learned at the beginning. 
+
+#### Assessing learning outcomes
+Before thinking about how children's hypothesis space might have been structured during this task, let's focus on how well they predicted which monsters would win a race in the test phase. We found that they got better at this with age: 5-year-olds correctly predicted the winning monster 57% of the time, 6-year-olds 69% of the time, and 7-year-olds 76% of the time. We found a similar age-related increase in accuracy when we considered how well children remembered the information they had gathered during the learning phase: 19% of 5-year-olds, 16% of 6-year-olds and 37% of 7-year-olds correctly sorted the learning monsters from fastest to slowest in the podium task. 
+
+To summarise, the ability to learn the relationship between monsters' _colour_ and _shape_, and their relative speed, improved with age, and so did children's retention of the information gathered during the learning phase, with a particularly big increase in memory accuracy between ages 6 and 7. 
+
+In some ways, it makes sense that being able to remember the information they gathered initially would help predict the winning monsters in the test phase, so it's not surprising that 7-year-olds were the best at the prediction task, given that they also remembered the most information about the monsters. However, 5- and 6-year-olds were better at predicting the winning monsters than the quality of their memory suggested, which pointed to something more complicated going on than simply "remember as much as possible to apply that information directly to new items." This is where the structure of their hypothesis space comes in.
+
+##### Reverse-engineering children's hypothesis space
