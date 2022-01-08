@@ -1,5 +1,7 @@
 # Active learning strategies in child- and adulthood: a summary of my PhD work
-In this section of my portfolio, I want to summarise what my PhD work was about in general, and explain the results of a few of the studies I ran. This section is intended for anyone who is curious about this kind of research and just wants to get a general feeling for it. I start with a (very) brief summary of the main points for the reader who's in a hurry or just wants a general idea of what I worked on. For the more interested or determined reader, I follow that up with a longer overview of the relevant background of my studies and some short explanations of two of the studies I ran. 
+In this section of my portfolio, I want to summarise what my PhD work was about in general, and explain the results of a few of the studies I ran. This section is intended for anyone who is curious about this kind of research and just wants to get a general feeling for it. 
+
+I start with a (very) brief summary of the main points for the reader who's in a hurry or just wants a general idea of what I worked on. For the more interested or determined reader, I follow that up with a more detailed overview of the relevant background of my studies and some short explanations of two of the studies I ran. 
 
 Navigate directly to a specific section here, or use the menu icon at the top left of this section to see the table of contents:
 - [Keep it short: take-home messages about active learning](#keep-it-short-take-home-messages-about-active-learning)
