@@ -83,11 +83,11 @@ In the test phase, we showed them three new monster pairs, which were different 
 
 After this prediction task, we showed them the learning monsters again and asked them to arrange them on a podium from fastest to slowest, to check how well they remembered what they had learned at the beginning. 
 
-#### Assessing learning outcomes
+### Assessing learning outcomes
 Before thinking about how children's hypothesis space might have been structured during this task, let's focus on how well they predicted which monsters would win a race in the test phase. We found that they got better at this with age: 5-year-olds correctly predicted the winning monster 57% of the time, 6-year-olds 69% of the time, and 7-year-olds 76% of the time. We found a similar age-related increase in accuracy when we considered how well children remembered the information they had gathered during the learning phase: 19% of 5-year-olds, 16% of 6-year-olds and 37% of 7-year-olds correctly sorted the learning monsters from fastest to slowest in the podium task. 
 
 To summarise, the ability to learn the relationship between monsters' _colour_ and _shape_, and their relative speed, improved with age, and so did children's retention of the information gathered during the learning phase, with a particularly big increase in memory accuracy between ages 6 and 7. 
 
 In some ways, it makes sense that being able to remember the information they gathered initially would help predict the winning monsters in the test phase, so it's not surprising that 7-year-olds were the best at the prediction task, given that they also remembered the most information about the monsters. However, 5- and 6-year-olds were better at predicting the winning monsters than the quality of their memory suggested, which pointed to something more complicated going on than simply "remember as much as possible to apply that information directly to new items." This is where the structure of their hypothesis space comes in.
 
-##### Reverse-engineering children's hypothesis space
+#### Reverse-engineering children's hypothesis space
