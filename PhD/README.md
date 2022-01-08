@@ -59,7 +59,7 @@ Studies have already shown that children are very adaptable in applying their st
 
 # Changes in how information is represented in the mind
 > NOTE:
-> It's better if you've read the previous section on the [building blocks of active learning](the-building-blocks-of-active-learning) to properly understand the following sections.
+> It's better if you've read the previous section on the [building blocks of active learning](the-building-blocks-of-active-learning-strategies) to properly understand the following sections.
 
 The **hypothesis space** refers to the way information relevant to a learning task is represented in the mind of a learner. This sounds very abstract and might not make intuitive sense, but hopefully, using one of my studies to illustrate the concept will help. But first, why is the hypothesis space important? It's important because learners need to keep track of what they're learning as they go along. How else would we know where the gaps in our knowledge are? Keeping track of both what we _already_ know, and what we still _don't_ know but need to in order to achieve a certain learning goal is crucial for deciding which information to look for next. That means the hypothesis space functions a bit like a database and a GPS at the same time, in that it stores information in a structured way and also directs the learner towards new information that will help fill in the gaps in their knowledge. 
 It also means that the exact _structure_ of this database-GPS-hybrid has a big influence on what the learner's strategy looks like, so we can reverse-engineer the structure of their hypothesis space from their learning behaviour by using carefully designed tasks. That's exactly what we did in this study.
