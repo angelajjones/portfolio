@@ -37,8 +37,8 @@ Another way to think about this issue is from a computational standpoint. In oth
 
 ### The building blocks of active learning strategies
 Active learning strategies can be theoretically broken down into three main components:
-- The hypothesis space (i.e., the structured mental representation of the information gathered during the task)
-- Sampling strategies (i.e., what learners care about the most when choosing what to look at next, for instance, do they care most about being right or about exploring all their possibilities?)
+- The hypothesis space (i.e., the structured mental representation of the information gathered during the task),
+- Sampling strategies (i.e., what learners care about the most when choosing what to look at next, for instance, do they care most about being right or about exploring all their possibilities?),
 - Adaptiveness (i.e., the ability to tailor a strategy to the specific task at hand, because no strategy is best all the time).
 
 Of course, cognitive skills play a huge role too, and are necessary to make all of these building blocks work. The diagram below summarises this breakdown.
@@ -50,9 +50,7 @@ Of course, cognitive skills play a huge role too, and are necessary to make all 
   <em>The building blocks of active learning strategies:<br>what every learner needs in order to interact with and learn about the world around them.</em>
 </p>
 
-Studies have shown that young children are already very adaptable in applying their strategies, so it's unlikely that there would be big enough changes in this building block to cause the observed trademark changes in learning strategies between the ages of 5 and 10. But what about the other two? Very little was known about the **hypothesis space** or **sampling strategies** when I started, so I focused on them.
-
-I summarise two of my studies focusing on these building blocks below.
+Studies have already shown that children are very adaptable in applying their strategies from a very young age (~4 to 5 years), so it's unlikely that this building block would change enough to cause the observed changes in learning strategies between the ages of 5 and 10. But what about the other two? Very little was known about the **hypothesis space** or **sampling strategies** when I started, so I focused on them.
 
 # Changes in how information is represented in the mind
-
+The hypothesis space refers to the way information relevant to a learning task is represented in the mind of a learner. This sounds very abstract and might not make intuitive sense, but hopefully, using one of my studies to illustrate the concept will help. But first, why is the hypothesis space important? It's important because learners need to keep track of what they're learning as they go along. How else would we know where the gaps in our knowledge are? Keeping track of both what we _already_ know, and what we still _don't_ know but need to in order to achieve a certain learning goal is crucial for deciding which information to look for next. That means the hypothesis space functions a bit like a GPS, in that it directs the learner towards new information that will help fill in the gaps in thir knowledge (at least, the knowledge they need to reach a certain goal). 
