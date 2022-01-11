@@ -24,7 +24,7 @@ Navigate directly to a specific section here, or use the menu icon at the top le
 - Active learning strategies change a lot between the ages of 5 and 10, with 5, 7 and 10 years of age being important milestones. Strategies generally progress from being less efficient and less effective at younger ages to more efficient and more effective at older ages, with characteristic jumps in efficiency happening around age 7 and progressing to almost adult-like levels around age 10. 
 
 - Active learning strategies can be deconstructed into 3 building blocks:
-    - the way task-relevant information is structured (i.e., the hypothesis space, which can be thought of as a kind of task-specific database),
+    - the way task-relevant information is structured in the learner's mind (i.e., the hypothesis space, which can be thought of as a kind of task-specific database),
     - what learners care about when selecting new information to look at (i.e., sampling strategies),
     - and how flexible they are in adapting their strategies to different contexts (i.e., adaptiveness).
     
