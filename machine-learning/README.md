@@ -1,2 +1,2 @@
 # Machine learning
-This section's content is coming soon! 
+This section houses my machine learning projects in R and Python. Currently I only have one project here, where I used weighted linear regression to predict German real-estate prices in R. The dataset I used was provided by a user on Kaggle (link and credit in the document itself). I am still putting the finishing touches on it and am thinking about linking a Tableau dashboard to it, so those last flourishes are coming soon.  
