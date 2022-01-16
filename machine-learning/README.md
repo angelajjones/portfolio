@@ -1,2 +1,3 @@
 # Machine learning
 This section houses my machine learning projects in R and Python. Currently I only have one project here, where I used weighted linear regression to predict German real-estate prices in R. The dataset I used was provided by a user on Kaggle (link and credit in the document itself). I am still putting the finishing touches on it and am thinking about linking a Tableau dashboard to it, so those last flourishes are coming soon.  
+As ever, to view the compiled HTML file click [here](https://htmlpreview.github.io/?https://github.com/angelajjones/portfolio/blob/main/machine-learning/DE_houseprices.nb.html).
