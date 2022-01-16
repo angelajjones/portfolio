@@ -1,0 +1,359 @@
+---
+title: "Predicting German House Prices using Weighted Linear Regression"
+output: html_notebook
+---
+
+# About this project
+Projects using linear regression or random forests to predict housing prices are quite common additions to data science and analytics portfolios, but many of these use North American datasets. I live in Germany, so I decided to use a German dataset provided by Kaggle user Erdogan Seref, who obtained this data by scraping the website ImmoScout24 on the 14th of July 2020 (URL: [https://www.kaggle.com/scriptsultan/german-house-prices?select=germany_housing_data_14.07.2020.csv](https://www.kaggle.com/scriptsultan/german-house-prices?select=germany_housing_data_14.07.2020.csv). 
+
+
+# Load required packages
+```{r setup}
+library(tidyverse)
+library(ggplot2)
+library(here)
+#library(corrplot)
+#library(ggcorrplot)
+library(gridExtra)
+#library(Hmisc)
+#library(regclass)
+#library(car)
+#library(arm)
+#library(caret)
+
+my_theme <- theme(axis.line.x.bottom = element_line(size = 0.25),
+                  axis.line.y.left = element_line(size = 0.25),
+                  panel.background = element_rect(fill = "white"),
+                  panel.grid = element_blank())
+
+theme_set(my_theme)
+```
+
+# Examine and prepare data
+To start with, let's take a look at the data.
+```{r load data}
+data <- read_csv(here("machine-learning", "germany_housing_data_14.07.2020.csv"))
+data <- data %>% mutate_if(is.character, as.factor) %>% distinct() # transform charactors to factors and drop duplicated values
+glimpse(data)
+```
+
+Next, we should see summary statistics and count missing values for each variable:
+```{r count NA}
+summary(data)
+missing <- as.data.frame(map(data, ~sum(is.na(.))/10552)) # calculate proportion of missing values in each column
+missing <- missing %>% pivot_longer(names_to = "var", cols = c(1:26))
+
+# plot proportion of missing values for each variable
+missing %>% ggplot(aes(x = fct_reorder(var, value), y = value)) +
+  geom_col() +
+  coord_flip() +
+  xlab("") +
+  ylab("Proportion missing")
+```
+### Looking for outliers
+Before trying to replace missing data based on information about the existing data, we should take a look at outliers. Some entries may be wrong due to human error (e.g., in the summary of the data, we can see some strangely high values, for example, the maximum value for `Bathrooms` is apparently 4034. This might be true but it might also be a typo). 
+```{r boxplots}
+data %>% ggplot(aes(x = Bathrooms)) +
+  geom_histogram(binwidth = 0.5) 
+
+data %>% ggplot(aes(x = Rooms)) +
+  geom_histogram(binwidth = 0.5) 
+
+data %>% ggplot(aes(x = Bathrooms, y = Price)) +
+  geom_jitter(colour = "darkgreen")
+
+data %>% ggplot(aes(x = Rooms, y = Price)) +
+  geom_jitter(colour = "sienna")
+
+data %>% ggplot(aes(x = Rooms, y = Living_space)) +
+  geom_jitter(colour = "purple")
+
+data %>% ggplot(aes(x = Rooms, y = Bathrooms)) +
+  geom_jitter()
+```
+Let's see what type of properties have such high numbers of rooms.
+```{r examine type}
+data_high <- data %>% filter(Rooms >= 50) 
+
+data_high %>% count(Type)
+
+data %>% count(Type)
+```
+
+It's very strange to see a Bungalow with more than 50 rooms. Let's take a closer look:
+```{r bungalow}
+data %>% filter(Type == "Bungalow") %>% 
+  ggplot(aes(x = Rooms, y = Living_space)) +
+  geom_jitter() 
+
+data %>% filter(Type == "Bungalow") %>% 
+  ggplot(aes(x = Rooms)) +
+  geom_histogram(binwidth = 1)
+```
+It looks like there are some really big bungalows out there. It makes me wonder whether some of these entries could be mislabeled, but short of checking all the corresponding listings there's nothing I can do about that. There also don't seem to be any data points which are clearly wrong, so I won't remove any.
+
+
+### Handling missing data
+Missing data can be replaced if there isn't too much missing and some reasonable methods to do it are possible (e.g., replacing some missing values with the mean or mode of the variable), but other times it's not reasonable to do so and they should just be deleted.
+
+We can see that `Energy_consumption` is missing almost 80% of its data, so this likely won't be useful for any analyses. The alternative, `Energy_efficiency_class` is also missing quite a lot of data (almost 50%) so it's not likely we'll be able to reliably use variables related to energy consumption and efficiency to predict sales prices here. Trying to replace the missing data would be too hard so we'll just ignore these variables.
+
+Sadly, there are no definite rules for how to handle missing data or outliers - this depends on the specific data and goals of your analysis. For the purpose of this project, I have decided not to attempt to replace missing data in variables where more than 40% of it is missing. That means I will ignore the following variables for my analysis:
+ - Energy_consumption
+ - Year_renovated
+ - Usable_area
+ - Energy_efficiency_class
+
+```{r drop useless var}
+data <- data %>% dplyr::select(-c(Energy_consumption, Year_renovated, Usable_area, Energy_efficiency_class))
+```
+
+
+Before thinking about imputing missing values, let's look at correlations between variables in this dataset so we can figure out which variables to keep. 
+
+To do this, I'm using a function defined by Catherine Williams in [this](https://towardsdatascience.com/how-to-create-a-correlation-matrix-with-too-many-variables-309cc0c0a57) Medium post. The output is a correlation plot which shows only significant correlations.
+
+```{r corrplot}
+library(corrplot)
+corr_simple <- function(data = df,sig = 0.5){
+  #convert data to numeric in order to run correlations
+  #convert to factor first to keep the integrity of the data - each value will become a number rather than turn into NA
+  df_cor <- data %>% mutate_if(is.character, as.factor)
+  df_cor <- df_cor %>% mutate_if(is.factor, as.numeric)  
+  #run a correlation and drop the insignificant ones
+  corr <- cor(df_cor)
+  #prepare to drop duplicates and correlations of 1     
+  corr[lower.tri(corr,diag=TRUE)] <- NA 
+  #drop perfect correlations
+  corr[corr == 1] <- NA   #turn into a 3-column table
+  corr <- as.data.frame(as.table(corr))
+  #remove the NA values from above 
+  corr <- na.omit(corr)   #select significant values  
+  corr <- subset(corr, abs(Freq) > sig) 
+  #sort by highest correlation
+  corr <- corr[order(-abs(corr$Freq)),]   #print table
+  print(corr)  #turn corr back into matrix in order to plot with corrplot
+  mtx_corr <- reshape2::acast(corr, Var1~Var2, value.var="Freq")
+  
+  #plot correlations visually
+  corrplot(mtx_corr, is.corr=FALSE, tl.col="black", na.label=" ")
+} 
+
+corr_simple(data, sig = 0.05)
+```
+Based on this output, it seems that there are 5 variables with significant associations in this dataset:
+- Price
+- X1
+- Lot
+- Rooms
+- Living space
+
+Notably, all but `Rooms` have no missing values. Using a multiple imputation method like MICE would be overkill for just one variable, plus, it's so strongly correlated with `Living_space` that it's pointless to include it as a separate predictor.
+
+We need to replace missing values in the values that make sense as predictors though. 
+
+### Impute missing values
+Based on the previous correlation plot, we can assume that most variables are pretty independent of each other, so again, a complicated imputation method is probably overkill. I'm just going to stick with the rule of thumb of replacing numeric values with the mean and categorical values with the mode.
+
+```{r imputation}
+# find mode of each categorical var:
+mode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+# check that it works
+mode(data$Type)
+
+# first, for numeric vars only
+data <- data %>% mutate(Year_built = replace_na(Year_built, mean(Year_built, na.rm = TRUE)),
+                        Garages = replace_na(Garages,  mean(Garages, na.rm = TRUE)),
+                        Floors = replace_na(Floors,  mean(Floors, na.rm = TRUE)),
+                        Type = replace_na(Type,  mode(Type)), 
+                        Furnishing_quality = replace_na(Furnishing_quality,  mode(Furnishing_quality)),
+                        Condition = replace_na(Condition,  mode(Condition)),
+                        Heating = replace_na(Heating,  mode(Heating)),
+                        Energy_source = replace_na(Energy_source,  mode(Energy_source)),
+                        Energy_certificate = replace_na(Energy_certificate,  mode(Energy_certificate)),
+                        Energy_certificate_type = replace_na(Energy_certificate_type,  mode(Energy_certificate_type)),
+                        State = replace_na(State,  mode(State)),             
+                        Garagetype = replace_na(Garagetype,  mode(Garagetype)))
+
+
+
+
+
+
+# keep only "relevant" variables for prediction
+data_simple <- data %>% 
+  dplyr::select(-c(City, Free_of_Relation, Rooms, Bedrooms, Bathrooms, Place, City)) 
+
+#data_simple <- data_simple %>% filter(Price >= 0)
+glimpse(data_simple)
+
+# check if any NAs remain
+sum(is.na(data_simple))
+
+```
+
+# Predict housing prices with linear regression
+Split data into train (70%) and test (30%):
+```{r}
+set.seed(1)
+row.number <- sample(1:nrow(data_simple), 0.7*nrow(data_simple))
+train <- data_simple[row.number,]
+test <- data_simple[-row.number,]
+
+# check that all factors have the same number of levels between datasets
+print("structure train")
+str(train)
+print("structure test")
+str(test)
+
+```
+
+It's generally bad practice to automatically include all possible predictors in a model, so let's use Stepwise Linear Regression to select the features of interest. 
+```{r make stepwise model}
+library(caret)
+# Set seed for reproducibility
+set.seed(123)
+# Set up repeated k-fold cross-validation
+train.control <- trainControl(method = "cv", number = 10)
+# Train the model
+step.model1 <- train(Price ~., data = train,
+                    method = "leapForward", 
+                    tuneGrid = data.frame(nvmax = 1:16),
+                    trControl = train.control
+                    )
+```
+
+```{r feature selection results}
+step.model1$results # model comparison
+
+step.model1$bestTune # number of predictors for best model
+coef(step.model1$finalModel, 16) # coefficients for that model
+```
+The result is that all 16 predictors are needed to maximise model fit, but the comparisons between models show that none of them really fit very well. The RMSE values are large and the adjusted R^2 values indicate that they explain less than 40% of the variance in house prices. 
+
+Why might this be the case? It's possible that linear regression isn't the best method for this dataset, but before jumping to that conclusion, we should actually check the relationships between the dependent variable and the predictors to see if any transformations are needed to make them linear. 
+
+```{r check assumptions}
+par(mfrow = c(1, 2))
+
+plot(fitted(step.model1), resid(step.model1), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Fitted versus Residuals")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+qqnorm(resid(step.model1), main = "Normal Q-Q Plot", col = "darkgrey")
+qqline(resid(step.model1), col = "dodgerblue", lwd = 2)
+```
+We can see that as the fitted value increases, the variance also increases quickly, and the residuals are not quite normally distributed. This calls for a variance stabilizing transformation. 
+
+## Examine the relationship between Price and numerical variables
+```{r plot price v living space}
+space <- data_simple %>% ggplot(aes(x = Living_space, y = Price)) +
+  geom_point()
+
+lot <- data_simple %>% ggplot(aes(x = Lot, y = Price)) +
+  geom_point()
+
+floor <- data_simple %>% ggplot(aes(x = Floors, y = Price)) +
+  geom_point()
+
+year <- data_simple %>% ggplot(aes(x = Year_built, y = Price)) +
+  geom_point()
+
+gar <- data_simple %>% ggplot(aes(x = Garages, y = Price)) +
+  geom_point()
+
+gridExtra::grid.arrange(space, lot, floor, year, gar, nrow = 2)
+```
+
+We can immediately see a problem, which is that the relationships between these variables are not quite linear. We can try to solve this by creating a new dependent variable which transforms `Price` (e.g., natural logarithm, square root... ). 
+
+
+Does transforming `Price` to its natural logarithm help?
+
+```{r plot log(price) relationships}
+space <- data_simple %>% ggplot(aes(x = Living_space, y = log(Price))) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x)
+
+lots  <- data_simple %>% ggplot(aes(x = Lot, y = log(Price))) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x)
+
+floor  <- data_simple %>% ggplot(aes(x = Floors , y = log(Price))) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x)
+
+year  <- data_simple %>% ggplot(aes(x = Year_built , y = log(Price))) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x)
+
+garage  <- data_simple %>% ggplot(aes(x = Garages , y = log(Price))) +
+  geom_point() +
+  geom_smooth(method='lm', formula= y~x)
+
+grid.arrange(space , lots , floor , year , garage , nrow = 2)
+```
+
+It doesn't really look like it does, so let's use the Box-Cox method to determine the best transformations. 
+```{r box-cox}
+library(MASS)
+
+m1 <- lm(Price ~ ., data = train[train$Price > 0,])
+boxcox(m1, plotit = TRUE, lambda = seq(-0.25, 0.75, by = 0.01))
+```
+lambda = 0.15 is close to the maximum and within the confidence interval, which suggests the following transformation could be applied to the response: 
+(y^0.15 -1)/0.15 
+
+```{r b-c transform}
+m1_cox = lm((((Price^0.15) - 1) / 0.15) ~ ., data = train)
+
+par(mfrow = c(1, 2))
+plot(fitted(m1_cox), resid(m1_cox), main = "Fitted versus Residuals", col = "grey", pch = 20, cex = 1.5, xlab = "Fitted", ylab = "Residuals")
+abline(h = 0, lty = 2, col = "darkorange", lwd = 2)
+
+qqnorm(resid(m1_cox), main = "Normal Q-Q Plot", col = "darkgrey")
+qqline(resid(m1_cox), col = "dodgerblue", lwd = 2)
+
+library(lmtest)
+bptest(m1_cox)
+
+```
+The fitted vs residuals plot does look a bit better than before, and so does the QQ-Plot (although it's still not looking great). However, the Breusch-Pagan test for heteroscedasticity shows that the assumption of homoscedasticity (i.e., equal variance in the residuals) is still not fulfilled after transforming the dependent variable, which is the usual solution. In other words, there is still unequal variance in our residuals 
+
+That means it might be worth trying a **weighted** linear regression. 
+
+## Weighted regression
+```{r weighted ls}
+# define weights such that observations with lower variance are given more weight
+wt <- 1 / lm(abs(m1_cox$residuals) ~ m1_cox$fitted.values)$fitted.values^2
+
+#perform weighted least squares regression
+wls_m1 <- lm((((Price^0.15) - 1) / 0.15) ~ ., data = train, weights = wt)
+
+#view RMSE and adjusted R^2
+sqrt(mean(wls_m1$residuals)^2)
+summary(wls_m1)$adj.r.sq
+
+```
+
+Considering the RMSE and adjusted R^2 of the weighted model, this seems to be a much better solution, although this new and improved model only explains about 50% of the variance in the data, which is much better than the previous model but still  
+
+## Predict test data
+```{r predict test}
+levels(test$Energy_source) == levels(train$Energy_source)
+test <- test %>% 
+  dplyr::filter(tidyselect::where(levels(test$Energy_source) %in% levels(train$Energy_source)))
+                               
+t_final <- predict(wls_m1, newdata = test)
+t_final <- round(p_test_final, 1)
+
+summary(wls_m1)
+```
+
+
+
+
+
